@@ -110,4 +110,5 @@ def calcular_carga_admisible(B, L, D, c, phi_grados, gamma, gamma_sat, zw, FS=3.
 # --- EJEMPLO DE USO ---
 # Zapata de 2x2m, a 1.5m de profundidad. NF a 1.0m (por encima de la base)
 # Terreno: cohesión 10 kPa, phi 30º, gamma 18 kN/m3, gamma_sat 20 kN/m3
-calcular_carga_admisible(B=3.0, L=2.0, D=2.5, c=100, phi_grados=0, gamma=18, gamma_sat=20, zw=10.0)
+for B in range(1, 10):
+    calcular_carga_admisible(B, B, D=2.5, c=100, phi_grados=0, gamma=18, gamma_sat=20, zw=10.0)
