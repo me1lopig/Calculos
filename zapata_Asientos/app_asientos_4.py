@@ -55,7 +55,7 @@ def tensiones_holl_centro(p, B, L, z):
     return 4 * sigma_z_esq, 4 * sigma_x_esq, 4 * sigma_y_esq
 
 def calcular_sigma_v0(z, df_terreno, NF):
-    """Calcula la tensión efectiva vertical en reposo a una profundidad z"""
+    """Calcula la tensión efectiva vertical a una profundidad z"""
     sigma_v0 = 0.0
     z_actual = 0.0
     for _, row in df_terreno.iterrows():
@@ -176,14 +176,14 @@ def generar_informe_word(B, L, p, NF, z_max_user, z_influencia, df_terreno,
         section.right_margin  = Cm(2.5)
 
     # ── PORTADA ──────────────────────────────────────────────────────────
-    titulo = doc.add_heading('INFORME DE CÁLCULO DE CIMENTACIONES', level=0)
+    titulo = doc.add_heading('INFORME DE CÁLCULO DE ASIENTOS', level=0)
     titulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    subtitulo = doc.add_paragraph('Guía de Cimentaciones con Eurocódigo 7 (EC7)')
+    subtitulo = doc.add_paragraph('Cálculo de Asientos de Cimentaciones Superficiales')
     subtitulo.alignment = WD_ALIGN_PARAGRAPH.CENTER
     subtitulo.runs[0].font.italic = True
     fecha_p = doc.add_paragraph(f'Fecha: {fecha}')
     fecha_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_page_break()
+    #doc.add_page_break()
 
     # ── SECCIÓN 1: DATOS DE ENTRADA ───────────────────────────────────────
     doc.add_heading('1. Datos de Entrada', level=1)
@@ -197,7 +197,7 @@ def generar_informe_word(B, L, p, NF, z_max_user, z_influencia, df_terreno,
         ('Presión neta aplicada (p)',     f'{p:.1f} kPa'),
         ('Nivel freático (NF)',           f'{NF:.1f} m'),
         ('Profundidad de corte (z_max)', f'{z_max_user:.1f} m'),
-        ('Prof. influencia EC7 (z_i)',   f'{z_influencia:.2f} m'),
+        ('Prof. influencia  (z_i)',   f'{z_influencia:.2f} m'),
     ]
     tabla_geo = doc.add_table(rows=len(params), cols=2)
     tabla_geo.style = 'Table Grid'
@@ -252,7 +252,7 @@ def generar_informe_word(B, L, p, NF, z_max_user, z_influencia, df_terreno,
     doc.add_page_break()
 
     # ── SECCIÓN 4: BULBO DE PRESIONES ────────────────────────────────────
-    doc.add_heading('4. Bulbo de Presiones y Zona de Influencia EC7', level=1)
+    doc.add_heading('4. Bulbo de Presiones y Zona de Influencia', level=1)
     z_vals = np.linspace(0.1, espesor_total, 200)
     sz_v, sx_v, sy_v, sv0_v = [], [], [], []
     for z in z_vals:
@@ -264,10 +264,10 @@ def generar_informe_word(B, L, p, NF, z_max_user, z_influencia, df_terreno,
     ax_b.plot(sz_v,  z_vals, label=r'Vertical $\Delta\sigma_z$',           color='red',    lw=2)
     ax_b.plot(sx_v,  z_vals, label=r'Horiz. Transversal $\Delta\sigma_x$', color='blue',   ls='--')
     ax_b.plot(sy_v,  z_vals, label=r'Horiz. Longitudinal $\Delta\sigma_y$',color='purple', ls='-.')
-    ax_b.plot(sv0_v, z_vals, label=r"$0.20\,\sigma'_{v0}$ (criterio EC7)", color='green',  lw=2)
+    ax_b.plot(sv0_v, z_vals, label=r"$0.20\,\sigma'_{v0}$ ", color='green',  lw=2)
     if z_influencia < espesor_total:
         ax_b.axhline(y=z_influencia, color='orange', ls=':', lw=1.5,
-                     label=f'z_i EC7 = {z_influencia:.2f} m')
+                     label=f'z_i = {z_influencia:.2f} m')
     if NF < espesor_total:
         ax_b.axhline(y=NF, color='deepskyblue', ls='-.', lw=1.2,
                      label=f'NF = {NF:.1f} m')
@@ -310,9 +310,9 @@ def generar_informe_word(B, L, p, NF, z_max_user, z_influencia, df_terreno,
                                left=0.07, right=0.95, top=0.88, bottom=0.08)
 
         # Título
-        fig.text(0.5, 0.94, 'INFORME DE CÁLCULO DE CIMENTACIONES', ha='center',
+        fig.text(0.5, 0.94, 'INFORME DE CÁLCULO DE ASIENTOS', ha='center',
                  fontsize=16, fontweight='bold', color='#1a3a5c')
-        fig.text(0.5, 0.91, f'Guía de Cimentaciones EC7 — Generado: {fecha}',
+        fig.text(0.5, 0.91, f'Cálculo asientos  — Generado: {fecha}',
                  ha='center', fontsize=9, color='gray')
 
         # Cuadro parámetros geométricos
@@ -326,7 +326,7 @@ def generar_informe_word(B, L, p, NF, z_max_user, z_influencia, df_terreno,
             ['Presión neta (p)', f'{p:.1f} kPa'],
             ['Nivel freático (NF)', f'{NF:.1f} m'],
             ['Prof. de corte (z_max)', f'{z_max_user:.1f} m'],
-            ['Prof. influencia EC7', f'{z_influencia:.2f} m'],
+            ['Prof. influencia ', f'{z_influencia:.2f} m'],
         ]
         tbl = ax_geo.table(cellText=datos_geo, colLabels=['Parámetro', 'Valor'],
                            loc='center', cellLoc='left')
@@ -462,7 +462,7 @@ def generar_informe_word(B, L, p, NF, z_max_user, z_influencia, df_terreno,
         ax3.plot(sv0_vals, z_vals, label=r"$0.20\,\sigma'_{v0}$ (criterio EC7)", color='green', lw=2)
         if z_influencia < espesor_total:
             ax3.axhline(y=z_influencia, color='orange', ls=':', lw=1.5,
-                        label=f'z_i EC7 = {z_influencia:.2f} m')
+                        label=f'z_i  = {z_influencia:.2f} m')
         if NF < espesor_total:
             ax3.axhline(y=NF, color='deepskyblue', ls='-.', lw=1.2,
                         label=f'Nivel freático NF = {NF:.1f} m')
@@ -470,7 +470,7 @@ def generar_informe_word(B, L, p, NF, z_max_user, z_influencia, df_terreno,
         ax3.set_xlim(left=0)
         ax3.set_xlabel('Tensión (kPa)', fontsize=11)
         ax3.set_ylabel('Profundidad z (m)', fontsize=11)
-        ax3.set_title('Bulbo de Presiones y Zona de Influencia EC7', fontsize=13, fontweight='bold')
+        ax3.set_title('Bulbo de Presiones y Zona de Influencia ', fontsize=13, fontweight='bold')
         ax3.legend(fontsize=9)
         ax3.grid(True, linestyle=':', alpha=0.5)
         ax3.spines[['top', 'right']].set_visible(False)
@@ -484,7 +484,7 @@ def generar_informe_word(B, L, p, NF, z_max_user, z_influencia, df_terreno,
     return buf
 
 # ==========================================
-# GESTIÓN DE ESTADO (SESSION STATE)
+# GESTIÓN DE ESTADO 
 # ==========================================
 def reset_calculo():
     st.session_state.calculo_realizado = False
@@ -494,10 +494,10 @@ if 'calculo_realizado' not in st.session_state:
 
 if 'df_terreno' not in st.session_state:
     st.session_state.df_terreno = pd.DataFrame({
-        "Descripción": ["Relleno", "Arcilla", "Grava"],
+        "Descripción": ["UG-01", "UG-02", "UG-03"],
         "Espesor (m)": [1.5, 3.0, 5.0],
-        "E (kPa)": [10000.0, 5000.0, 40000.0],
-        "nu": [0.30, 0.45, 0.25],
+        "E (kPa)": [10000.0, 15000.0, 40000.0],
+        "nu": [0.30, 0.35, 0.25],
         "Peso Esp. (kN/m³)": [18.0, 19.0, 21.0],
         "Peso Esp. Sat (kN/m³)": [20.0, 20.0, 22.0]
     })
@@ -505,7 +505,7 @@ if 'df_terreno' not in st.session_state:
 # ==========================================
 # CONFIGURACIÓN DE PÁGINA Y BARRA LATERAL
 # ==========================================
-st.set_page_config(page_title="Cálculo de Cimentaciones EC7", layout="wide", page_icon="🏗️")
+st.set_page_config(page_title="Cálculo de asientos", layout="wide", page_icon="🏗️")
 
 st.sidebar.title("Navegación")
 modo_vista = st.sidebar.radio(
@@ -609,7 +609,7 @@ if st.session_state.calculo_realizado:
     st.sidebar.download_button(
         label="📝 Descargar Informe Word",
         data=word_bytes,
-        file_name=f"informe_cimentacion_{datetime.now().strftime('%Y%m%d_%H%M')}.docx",
+        file_name=f"informe_asientos_{datetime.now().strftime('%Y%m%d_%H%M')}.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         use_container_width=True
     )
@@ -621,12 +621,12 @@ else:
 # ==========================================
 # ÁREA PRINCIPAL CENTRAL
 # ==========================================
-st.title("🏗️ Proyecto de Cimentaciones Superficiales")
+st.title("🏗️ Cálculo de asientos elásticos")
 
 if modo_vista == "🧮 Panel de Cálculo":
     
     st.header("1. Estratigrafía del Terreno")
-    st.info("Añade los pesos específicos para calcular correctamente la Tensión Efectiva (Norma EC7).")
+    st.info("Añade los pesos específicos para calcular correctamente la Tensión Efectiva .")
     
     df_actualizado = st.data_editor(st.session_state.df_terreno, num_rows="dynamic", use_container_width=True)
     
@@ -697,7 +697,7 @@ elif modo_vista == "🔍 Desglose de Asientos":
         )
 
         # --- Resumen Δs ---
-        st.markdown("##### 📊 Asiento aportado por estrato")
+        st.markdown("##### 📊 Asiento por estrato")
         df_delta = df_det[["Capa", "Δs Real [mm]"]].copy()
         st.dataframe(
             df_delta,
@@ -749,7 +749,7 @@ elif modo_vista == "📖 Fundamento Teórico":
     st.header("Metodología de Cálculo")
     
     st.subheader("1. Cálculo de Asientos (Steinbrenner)")
-    st.markdown("Basado en el Apartado 5.2.8.3 de la Guía EC7. El asiento a profundidad $z$ en medio semi-infinito es:")
+    st.markdown("Basado en el Apartado 5.2.8.3 de la Guía del EC7. El asiento a profundidad $z$ en medio semi-infinito es:")
     st.latex(r"s(z) = \frac{p \cdot B}{E} \left[ (1 - \nu^2) \phi_1 - (1 - \nu - 2\nu^2) \phi_2 \right]")
     st.markdown(r"Donde $\phi_1$ y $\phi_2$ dependen de $n = L/B$ y $m = 2z/B$:")
     st.latex(r"\phi_1 = \frac{1}{\pi} \left[ \ln \left( \frac{\sqrt{1+m^2+n^2}+n}{\sqrt{1+m^2}} \right) + n \ln \left( \frac{\sqrt{1+m^2+n^2}+1}{\sqrt{n^2+m^2}} \right) \right]")
@@ -764,7 +764,7 @@ elif modo_vista == "📖 Fundamento Teórico":
     st.latex(r"\sigma_y = \frac{p}{2\pi} \left[ \arctan\left(\frac{BL}{zR_3}\right) - \frac{BLz}{R_2^2 R_3} \right]")
     st.markdown(r"Siendo $R_1 = \sqrt{L^2+z^2}$, $R_2 = \sqrt{B^2+z^2}$ y $R_3 = \sqrt{L^2+B^2+z^2}$.")
 
-    st.subheader("3. Profundidad de Influencia (Criterio EC7)")
+    st.subheader("3. Profundidad de Influencia ")
     st.markdown("""
     La profundidad de influencia $z_i$ es aquella a partir de la cual el incremento de tensión 
     generado por la cimentación es despreciable frente al estado tensional natural del terreno. 
