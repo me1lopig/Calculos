@@ -109,7 +109,7 @@ def calcular_steinbrenner(p, B, L, df, z_max):
     return total, pd.DataFrame(resultados)
 
 # ══════════════════════════════════════════════════════════════════════════
-# MÉTODO 2 — EC. 68 (integración directa de deformaciones unitarias)
+# MÉTODO 2 — (integración directa de deformaciones unitarias)
 # ══════════════════════════════════════════════════════════════════════════
 def calcular_ec68(p, B, L, df, z_max, dz_sub=0.25):
     """
@@ -182,7 +182,7 @@ def calcular_ec68(p, B, L, df, z_max, dz_sub=0.25):
     return total, pd.DataFrame(resultados)
 
 # ══════════════════════════════════════════════════════════════════════════
-# TENSIÓN EFECTIVA Y ZONA DE INFLUENCIA EC7
+# TENSIÓN EFECTIVA Y ZONA DE INFLUENCIA
 # ══════════════════════════════════════════════════════════════════════════
 def sigma_v0(z, df, NF):
     sv = 0.0; z_act = 0.0
@@ -212,76 +212,115 @@ def z_influencia_ec7(p, B, L, df, NF):
     return et
 
 # ══════════════════════════════════════════════════════════════════════════
-# INFORME WORD
+# INFORME WORD ESTÉTICO
 # ══════════════════════════════════════════════════════════════════════════
 def _fig_bytes(fig):
     buf = io.BytesIO()
-    fig.savefig(buf, format='png', dpi=150, bbox_inches='tight')
+    fig.savefig(buf, format='png', dpi=200, bbox_inches='tight')
     buf.seek(0)
     return buf
 
-def _cab(celda, texto):
-    celda.text = texto
-    r = celda.paragraphs[0].runs[0]
-    r.font.bold = True; r.font.color.rgb = RGBColor(255,255,255); r.font.size = Pt(8)
-    from docx.oxml.ns import qn; from docx.oxml import OxmlElement
-    tc = celda._tc; tcPr = tc.get_or_add_tcPr()
-    shd = OxmlElement('w:shd')
-    shd.set(qn('w:fill'),'1A3A5C'); shd.set(qn('w:val'),'clear')
-    tcPr.append(shd)
-
-def _tabla_word(doc, df, titulo):
-    doc.add_heading(titulo, level=2)
-    cols = list(df.columns)
-    tbl = doc.add_table(rows=1+len(df), cols=len(cols))
-    tbl.style = 'Table Grid'
-    tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
-    for j,c in enumerate(cols): _cab(tbl.cell(0,j), c)
-    for i,(_, row) in enumerate(df.iterrows(), 1):
-        for j, val in enumerate(row):
-            cel = tbl.cell(i,j)
-            cel.text = str(val)
-            cel.paragraphs[0].runs[0].font.size = Pt(7)
-            if i%2==0:
-                from docx.oxml.ns import qn; from docx.oxml import OxmlElement
-                tc=cel._tc; tcPr=tc.get_or_add_tcPr()
-                shd=OxmlElement('w:shd'); shd.set(qn('w:fill'),'E8F0FE'); shd.set(qn('w:val'),'clear')
-                tcPr.append(shd)
+def _add_styled_table(doc, df, title):
+    doc.add_heading(title, level=2)
+    # Convertir dataframe limpiando formatos
+    df = df.astype(str)
+    table = doc.add_table(rows=1+len(df), cols=len(df.columns))
+    table.style = 'Medium List 1 Accent 1' # Estilo nativo de Word muy limpio
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    
+    # Cabeceras
+    hdr_cells = table.rows[0].cells
+    for i, column in enumerate(df.columns):
+        hdr_cells[i].text = column
+        for paragraph in hdr_cells[i].paragraphs:
+            for run in paragraph.runs:
+                run.font.bold = True
+                run.font.size = Pt(9)
+                run.font.color.rgb = RGBColor(255, 255, 255)
+    
+    # Filas de datos
+    for i, row in enumerate(df.itertuples(index=False)):
+        row_cells = table.rows[i+1].cells
+        for j, value in enumerate(row):
+            row_cells[j].text = str(value)
+            for paragraph in row_cells[j].paragraphs:
+                for run in paragraph.runs:
+                    run.font.size = Pt(8)
+                    
+    # Añadir espacio post-tabla
     doc.add_paragraph()
 
 def generar_word(B, L, p, NF, z_max, zi, df_terreno,
                  df_st, tot_st, df_ec, tot_ec,
-                 fig_comp_bytes, fig_bulbo_bytes):
-    fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
+                 fig_bulbo_bytes):
+    fecha = datetime.now().strftime("%d de %B de %Y — %H:%M")
     doc = Document()
+    
+    # Configurar márgenes elegantes
     for sec in doc.sections:
-        sec.top_margin=Cm(2); sec.bottom_margin=Cm(2)
-        sec.left_margin=Cm(2.5); sec.right_margin=Cm(2.5)
+        sec.top_margin = Cm(2.5)
+        sec.bottom_margin = Cm(2.5)
+        sec.left_margin = Cm(2.5)
+        sec.right_margin = Cm(2.5)
 
-    # Portada
-    t = doc.add_heading('INFORME COMPARATIVO DE ASIENTOS', level=0)
-    t.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    s1 = doc.add_paragraph('Método Steinbrenner  vs  Ec. 68 (Guía EC7)')
-    s1.alignment = WD_ALIGN_PARAGRAPH.CENTER; s1.runs[0].font.italic = True
-    fp = doc.add_paragraph(f'Fecha: {fecha}')
-    fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_page_break()
+    # Estilos globales
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Calibri'
+    font.size = Pt(11)
 
-    # 1. Datos entrada
-    doc.add_heading('1. Datos de Entrada', level=1)
-    doc.add_heading('1.1 Parámetros', level=2)
-    params = [('B (m)',f'{B:.2f}'),('L (m)',f'{L:.2f}'),('n=L/B',f'{L/B:.3f}'),
-              ('p (kPa)',f'{p:.1f}'),('NF (m)',f'{NF:.1f}'),
-              ('z_max (m)',f'{z_max:.1f}'),('z_i EC7 (m)',f'{zi:.2f}')]
-    tg = doc.add_table(rows=len(params), cols=2); tg.style='Table Grid'
-    for i,(k,v) in enumerate(params):
-        tg.cell(i,0).text=k; tg.cell(i,1).text=v
-        tg.cell(i,0).paragraphs[0].runs[0].font.bold=True
+    # Portada principal
+    p_title = doc.add_paragraph()
+    p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r_title = p_title.add_run('CÁLCULO DE ASIENTOS')
+    r_title.bold = True
+    r_title.font.size = Pt(18)
+    r_title.font.color.rgb = RGBColor(31, 73, 125) # Azul oscuro profesional
+    
+    p_sub = doc.add_paragraph()
+    p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r_sub = p_sub.add_run('Comparativa de Formulaciones: Steinbrenner vs Guía ecuación elástica \n')
+    r_sub.italic = True
+    r_sub.font.size = Pt(12)
+    r_sub.font.color.rgb = RGBColor(128, 128, 128)
+    
+    p_date = doc.add_paragraph()
+    p_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r_date = p_date.add_run(f'Fecha de emisión: {fecha}')
+    r_date.font.size = Pt(10)
+
+    doc.add_paragraph() # Espacio
+    
+    # ── 1. Datos de Entrada ──────────────────────────────────────────────
+    doc.add_heading('1. Parámetros de la Cimentación', level=1)
+    
+    # Tabla sin bordes feos para datos (Grid = feo, Light = limpio)
+    table_params = doc.add_table(rows=7, cols=2)
+    table_params.style = 'Light List Accent 1'
+    
+    data = [
+        ('Dimensiones en planta (B × L)', f'{B:.2f} m  ×  {L:.2f} m'),
+        ('Esbeltez geométrica (n = L/B)', f'{L/B:.3f}'),
+        ('Presión de trabajo (p)', f'{p:.1f} kPa'),
+        ('Nivel freático (NF)', f'{NF:.1f} m desde cimentación'),
+        ('Profundidad máxima de corte (z_max)', f'{z_max:.1f} m'),
+        ('Profundidad bulbo criterio EC7 (z_i)', f'{zi:.2f} m'),
+        ('Tensiones', 'Calculadas bajo el CENTRO (Superposición 4x)')
+    ]
+    
+    for i, (key, val) in enumerate(data):
+        row = table_params.rows[i].cells
+        row[0].text = key
+        row[1].text = val
+        row[0].paragraphs[0].runs[0].font.bold = True
+        row[0].paragraphs[0].runs[0].font.size = Pt(10)
+        row[1].paragraphs[0].runs[0].font.size = Pt(10)
+        
     doc.add_paragraph()
-    _tabla_word(doc, df_terreno, '1.2 Estratigrafía')
+    
+    _add_styled_table(doc, df_terreno, '1.2 Estratigrafía del Perfil')
     doc.add_page_break()
 
-    # 2. Comparativa
     doc.add_heading('2. Comparativa de Resultados', level=1)
     p2 = doc.add_paragraph()
     r1 = p2.add_run(f'Steinbrenner: {tot_st*1000:.3f} mm    ')
@@ -290,19 +329,14 @@ def generar_word(B, L, p, NF, z_max, zi, df_terreno,
     r2.font.bold=True; r2.font.size=Pt(11); r2.font.color.rgb=RGBColor(0,100,0)
     doc.add_paragraph()
 
-    doc.add_heading('2.1 Gráfico Comparativo', level=2)
-    doc.add_picture(fig_comp_bytes, width=Cm(14))
-    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_page_break()
-
     # 3. Detalles
-    _tabla_word(doc, df_st, '3. Detalle Steinbrenner (por capa)')
+    _add_styled_table(doc, df_st, '3. Detalle Steinbrenner (por capa)')
     doc.add_page_break()
-    _tabla_word(doc, df_ec, '4. Detalle Ec. 68 (por capa)')
+    _add_styled_table(doc, df_ec, '4. Detalle Ecuación Elástica (por capa)')
     doc.add_page_break()
 
     # 5. Bulbo
-    doc.add_heading('5. Bulbo de Presiones', level=1)
+    h5 = doc.add_heading('5. Bulbo de Presiones', level=1)
     doc.add_picture(fig_bulbo_bytes, width=Cm(12))
     doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
 
@@ -326,7 +360,7 @@ if 'df_terreno' not in st.session_state:
     st.session_state.df_terreno = pd.DataFrame({
         "Descripción":           ["Relleno",  "Arcilla",  "Grava"],
         "Espesor (m)":           [1.5,         3.0,        5.0],
-        "E (kPa)":               [10000.0,     5000.0,     40000.0],
+        "E (kPa)":               [10000.0,     15000.0,     40000.0],
         "nu":                    [0.30,         0.45,       0.25],
         "Peso Esp. (kN/m³)":     [18.0,         19.0,       21.0],
         "Peso Esp. Sat (kN/m³)": [20.0,         20.0,       22.0],
@@ -336,15 +370,15 @@ if 'df_terreno' not in st.session_state:
 # CONFIGURACIÓN
 # ══════════════════════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="Asientos EC7 — Comparativa de Métodos",
+    page_title="Asientos Comparativa de Métodos",
     layout="wide", page_icon="🏗️"
 )
 
 st.sidebar.title("Navegación")
 modo = st.sidebar.radio("Vista:", [
     "🧮 Panel de Cálculo",
-    "📋 Detalle Steinbrenner",
-    "📋 Detalle Ec. 68",
+    "📋 Modelo Steinbrenner",
+    "📋 Modelo Elástico",
     "📉 Bulbo de Presiones",
     "📖 Fundamento Teórico",
 ])
@@ -380,15 +414,15 @@ z_max_user = st.sidebar.number_input(
     step=0.1, on_change=reset_calculo
 )
 
-# Precisión de integración Ec.68
+# Precisión de ecuación elástica
 st.sidebar.markdown("---")
-st.sidebar.subheader("🔧 Precisión Ec. 68")
+st.sidebar.subheader("🔧 Precisión Ecuación Elástica")
 dz_sub = st.sidebar.select_slider(
     "Tamaño de subcapa (dz) [m]",
     options=[2.0, 1.0, 0.5, 0.25, 0.10, 0.05],
     value=0.10,
     on_change=reset_calculo,
-    help="Subdivisión de cada estrato para integrar la Ec. 68. "
+    help="Subdivisión de cada estrato para modelo elástico. "
          "Menos dz = más precisión (converge a Steinbrenner)."
 )
 st.sidebar.caption(f"Subcapas estimadas: ~{int(np.ceil(espesor_total / dz_sub))} en total")
@@ -397,7 +431,7 @@ st.sidebar.caption(f"Subcapas estimadas: ~{int(np.ceil(espesor_total / dz_sub))}
 # BOTÓN CALCULAR
 # ══════════════════════════════════════════════════════════════════════════
 st.sidebar.markdown("---")
-if st.sidebar.button("🚀 Calcular con Ambos Métodos", type="primary", use_container_width=True):
+if st.sidebar.button("🚀 Calcular", type="primary", use_container_width=True):
     tot_st, df_st = calcular_steinbrenner(p, B, L, st.session_state.df_terreno, z_max_user)
     tot_ec, df_ec = calcular_ec68(        p, B, L, st.session_state.df_terreno, z_max_user, dz_sub)
 
@@ -417,24 +451,6 @@ if st.session_state.calculo_realizado:
     df_ec = st.session_state.df_ec
     tot_st= st.session_state.tot_st
     tot_ec= st.session_state.tot_ec
-
-    # ── Figura comparativa barras ─────────────────────────────────────────
-    capas = df_st["Capa"].tolist()
-    x = np.arange(len(capas)); w = 0.35
-    fig_c, ax_c = plt.subplots(figsize=(max(6, len(capas)*1.5), 4))
-    b1 = ax_c.bar(x - w/2, df_st["Δs [mm]"], w,
-                  label="Steinbrenner", color="#1a3a5c", alpha=0.85)
-    b2 = ax_c.bar(x + w/2, df_ec["Δs [mm]"],  w,
-                  label="Ec. 68",       color="#2ecc71", alpha=0.85)
-    ax_c.bar_label(b1, fmt="%.2f", fontsize=7, padding=2)
-    ax_c.bar_label(b2, fmt="%.2f", fontsize=7, padding=2)
-    ax_c.set_xticks(x); ax_c.set_xticklabels(capas)
-    ax_c.set_ylabel("Δs (mm)"); ax_c.set_title("Asiento por estrato — comparativa")
-    ax_c.legend(); ax_c.grid(axis='y', linestyle=':', alpha=0.5)
-    ax_c.spines[['top','right']].set_visible(False)
-    plt.tight_layout()
-    fig_comp_bytes = _fig_bytes(fig_c)
-    plt.close(fig_c)
 
     # ── Figura bulbo ──────────────────────────────────────────────────────
     z_vals = np.linspace(0.05, espesor_total, 200)
@@ -465,7 +481,7 @@ if st.session_state.calculo_realizado:
         B, L, p, NF, z_max_user, zi,
         st.session_state.df_terreno,
         df_st, tot_st, df_ec, tot_ec,
-        fig_comp_bytes, fig_bulbo_bytes
+        fig_bulbo_bytes
     )
     st.sidebar.download_button(
         "📝 Descargar Informe Word", data=word_buf,
@@ -481,11 +497,9 @@ else:
 # ══════════════════════════════════════════════════════════════════════════
 # ÁREA PRINCIPAL
 # ══════════════════════════════════════════════════════════════════════════
-st.title("🏗️ Cálculo de Asientos — Comparativa de Métodos")
-st.markdown(
-    "**Método 1 — Steinbrenner** (integración analítica) · "
-    "**Método 2 — Ec. 68** (integración directa de deformaciones)"
-)
+st.title("🏗️ Cálculo de Asientos de cimentaciones rectangulares")
+st.markdown("**Método 1 — Modelo Steinbrenner**")
+st.markdown("**Método 2 — Modelo Elástico**")
 st.markdown("---")
 
 # ══════════════════════════════════════════════════
@@ -515,7 +529,7 @@ if modo == "🧮 Panel de Cálculo":
     st.header("2. Resultados y Comparativa")
 
     if not st.session_state.calculo_realizado:
-        st.info("👈 Pulsa **Calcular con Ambos Métodos** en el panel izquierdo.")
+        st.info("👈 Pulsa **Calcular** en el panel izquierdo.")
     else:
         df_st = st.session_state.df_st
         df_ec = st.session_state.df_ec
@@ -524,37 +538,14 @@ if modo == "🧮 Panel de Cálculo":
 
         # ── Métricas principales ──────────────────────────────────────────
         dz_used = st.session_state.get('dz_used', 0.25)
-        st.success(f"✅ Cálculo completado. **Ec. 68** integrada con subcapas de **{dz_used} m**.")
+        st.success(f"✅ Cálculo completado. **Ec. elástica** integrada con subcapas de **{dz_used} m**.")
         c1, c2, c3 = st.columns(3)
-        c1.metric("🔵 Steinbrenner",    f"{tot_st*1000:.3f} mm")
-        c2.metric("🟢 Ec. 68",           f"{tot_ec*1000:.3f} mm",
+        c1.metric("🔵 Steinbrenner",f"{tot_st*1000:.3f} mm")
+        c2.metric("🟢 Ec. Elástica", f"{tot_ec*1000:.3f} mm",
                   help=f"Integrada con dz = {dz_used} m")
         dif = abs(tot_st - tot_ec)*1000
         pct = abs(tot_st - tot_ec)/max(abs(tot_st), 1e-9)*100
-        c3.metric("📊 Diferencia",       f"{dif:.3f} mm", f"{pct:.1f}%")
-
-        st.markdown("---")
-
-        # ── Gráfico barras comparativo ────────────────────────────────────
-        st.subheader("Asiento por estrato — Comparativa")
-        capas = df_st["Capa"].tolist()
-        x = np.arange(len(capas)); w = 0.35
-        fig, ax = plt.subplots(figsize=(max(7, len(capas)*1.8), 4))
-        b1 = ax.bar(x - w/2, df_st["Δs [mm]"], w,
-                    label="Steinbrenner", color="#1a3a5c", alpha=0.85)
-        b2 = ax.bar(x + w/2, df_ec["Δs [mm]"],  w,
-                    label="Ec. 68",       color="#2ecc71", alpha=0.85)
-        ax.bar_label(b1, fmt="%.3f", fontsize=8, padding=2)
-        ax.bar_label(b2, fmt="%.3f", fontsize=8, padding=2)
-        ax.set_xticks(x); ax.set_xticklabels(capas)
-        ax.set_ylabel("Δs (mm)"); ax.legend()
-        ax.grid(axis='y', linestyle=':', alpha=0.5)
-        ax.spines[['top','right']].set_visible(False)
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close(fig)
-
-        st.markdown("---")
+        c3.metric("📊 Diferencia",f"{dif:.3f} mm", f"{pct:.1f}%")
 
         # ── Tabla comparativa por capa ────────────────────────────────────
         st.subheader("Tabla comparativa por capa")
@@ -572,7 +563,7 @@ if modo == "🧮 Panel de Cálculo":
                 "z Techo [m]":          st.column_config.NumberColumn("z Techo [m]",         width="small", format="%.2f"),
                 "z Base [m]":           st.column_config.NumberColumn("z Base [m]",           width="small", format="%.2f"),
                 "Δs Steinbrenner [mm]": st.column_config.NumberColumn("Δs Steinbrenner [mm]", width="medium",format="%.3f"),
-                "Δs Ec.68 [mm]":        st.column_config.NumberColumn("Δs Ec. 68 [mm]",       width="medium",format="%.3f"),
+                "Δs Ec.elástica [mm]":        st.column_config.NumberColumn("Δs Ec. 68 [mm]",       width="medium",format="%.3f"),
                 "Diferencia [mm]":      st.column_config.NumberColumn("Diferencia [mm]",       width="medium",format="%.3f"),
             }
         )
@@ -589,6 +580,17 @@ elif modo == "📋 Detalle Steinbrenner":
         st.warning("⚠️ Calcula primero.")
     else:
         df_st = st.session_state.df_st
+# ══════════════════════════════════════════════════
+# VISTA 2: DETALLE STEINBRENNER
+# ══════════════════════════════════════════════════
+elif modo == "📋 Modelo Steinbrenner":
+    st.header("📋 Detalle Método Steinbrenner")
+    st.markdown("Cálculo capa a capa integrando las funciones de influencia $\\phi_1$ y $\\phi_2$.")
+    
+    if not st.session_state.calculo_realizado:
+        st.warning("⚠️ Calcula primero en el panel izquierdo.")
+    else:
+        df_st = st.session_state.df_st
         st.markdown("##### 🔼 Valores en el Techo")
         st.dataframe(df_st[["Capa","z Techo [m]","m_techo","φ1_techo","φ2_techo","s_techo [mm]"]],
                      use_container_width=True, hide_index=True)
@@ -601,10 +603,10 @@ elif modo == "📋 Detalle Steinbrenner":
                   f"{st.session_state.tot_st*1000:.3f} mm")
 
 # ══════════════════════════════════════════════════
-# VISTA 3: DETALLE EC. 68
+# VISTA 3: DETALLE EC ELÁSTICO
 # ══════════════════════════════════════════════════
-elif modo == "📋 Detalle Ec. 68":
-    st.header("📋 Detalle Método Ec. 68")
+elif modo == "📋 Modelo Elástico":
+    st.header("📋 Detalle Método Ecuación Elástica")
     st.latex(r"s = \sum_{i=1}^{n}\left[\frac{h}{E}\left(\Delta\sigma_z - \nu(\Delta\sigma_x+\Delta\sigma_y)\right)\right]_i")
 
     if not st.session_state.calculo_realizado:
@@ -626,7 +628,7 @@ elif modo == "📋 Detalle Ec. 68":
 # VISTA 4: BULBO DE PRESIONES
 # ══════════════════════════════════════════════════
 elif modo == "📉 Bulbo de Presiones":
-    st.header("Bulbo de Presiones y Zona de Influencia EC7")
+    st.header("Bulbo de Presiones y Zona de Influencia")
     st.markdown(
         r"Tensiones bajo el centro ($\times 4$ superposición $B/2 \times L/2$). "
         r"El criterio EC7 es: $\Delta\sigma_z \leq 0.20\,\sigma'_{v0}$."
@@ -691,7 +693,7 @@ elif modo == "📖 Fundamento Teórico":
         st.info("El asiento integra implícitamente la distribución de tensiones en profundidad.")
 
     with col_b:
-        st.subheader("🟢 Método 2 — Ec. 68 (integración directa)")
+        st.subheader("🟢 Método 2 — Ecuación Elástica")
         st.markdown("Integración explícita de la deformación unitaria vertical en cada estrato:")
         st.latex(r"s = \sum_{i=1}^{n}\left[\frac{h}{E}\left(\Delta\sigma_z - \nu(\Delta\sigma_x+\Delta\sigma_y)\right)\right]_i")
         st.markdown(r"Las tensiones se evalúan en el **punto medio** de cada estrato ($z_{mid}$):")
@@ -707,10 +709,12 @@ elif modo == "📖 Fundamento Teórico":
         r"(UNE-EN 1997-1, 6.6.2(15)):"
     )
     st.latex(r"\sigma_z = \frac{p}{2\pi}\left[\arctan\frac{BL}{zR_3} + BL\left(\frac{1}{R_1^2}+\frac{1}{R_2^2}\right)\frac{z}{R_3}\right]")
+    st.latex(r"\sigma_x = \frac{p}{2\pi}\left[\arctan\frac{BL}{zR_3} - \frac{BLz}{R_1^2 R_3}\right]")
+    st.latex(r"\sigma_y = \frac{p}{2\pi}\left[\arctan\frac{BL}{zR_3} - \frac{BLz}{R_2^2 R_3}\right]")
     st.latex(r"R_1=\sqrt{L^2+z^2}\quad R_2=\sqrt{B^2+z^2}\quad R_3=\sqrt{L^2+B^2+z^2}")
 
     st.markdown("---")
-    st.subheader("📐 Criterio de Profundidad de Influencia (EC7)")
+    st.subheader("📐 Criterio de Profundidad de Influencia ")
     st.latex(r"\Delta\sigma_z(z_i) \leq 0.20\,\sigma'_{v0}(z_i)")
     st.markdown(
         r"Con $\sigma'_{v0}$ = tensión efectiva geoestática, considerando el nivel freático: "
