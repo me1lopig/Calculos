@@ -54,14 +54,14 @@ def phi2(m, n):
 def s_z(p, B, E, nu, z, L):
     """Asiento teórico acumulado desde superficie hasta z (Steinbrenner)."""
     n = L/B
-    m = (2*z)/B
+    m = z/B  # <-- CORREGIDO: m es simplemente z dividido por el ancho del área cargada
     corchete = (1-nu**2)*phi1(m,n) - (1-nu-2*nu**2)*phi2(m,n)
     return (p*B/E)*corchete
 
 def calcular_steinbrenner(p, B, L, df, z_max):
     """
     Método 1 — Steinbrenner BAJO EL CENTRO de la cimentación.
-    s_z() da el asiento bajo la ESQUINA de B\xd7L. Para el CENTRO:
+    s_z() da el asiento bajo la ESQUINA de BxL. Para el CENTRO:
         s_centro(z) = 4 × s_z(p, B/2, E, nu, z, L/2)
     Igual que la superposición usada por holl_centro().
     """
@@ -81,9 +81,10 @@ def calcular_steinbrenner(p, B, L, df, z_max):
         z_techo = z_actual
         z_base  = min(z_actual + h_i, z_max)
 
-        # m relativo al cuadrante B/2 (m_cuad = 2z/(B/2) = 4z/B)
-        m_t = (2*z_techo) / (B/2)
-        m_b = (2*z_base)  / (B/2)
+        # m relativo al cuadrante B/2 (m_cuad = z/(B/2) = 2z/B)
+        m_t = z_techo / (B/2)  # <-- CORREGIDO
+        m_b = z_base  / (B/2)  # <-- CORREGIDO
+        
         # Asiento CENTRO = 4 × esquina del cuadrante B/2 × L/2
         s_t = 4 * s_z(p, B/2, E_i, nu_i, z_techo, L/2)
         s_b = 4 * s_z(p, B/2, E_i, nu_i, z_base,  L/2)
@@ -568,18 +569,6 @@ if modo == "🧮 Panel de Cálculo":
             }
         )
 
-# ══════════════════════════════════════════════════
-# VISTA 2: DETALLE STEINBRENNER
-# ══════════════════════════════════════════════════
-elif modo == "📋 Detalle Steinbrenner":
-    st.header("📋 Detalle Método Steinbrenner")
-    st.latex(r"s = \frac{p \cdot B}{E}\left[(1-\nu^2)\phi_1 - (1-\nu-2\nu^2)\phi_2\right]"
-             r"\quad \Delta s_i = s(z_{techo}) - s(z_{base})")
-
-    if not st.session_state.calculo_realizado:
-        st.warning("⚠️ Calcula primero.")
-    else:
-        df_st = st.session_state.df_st
 # ══════════════════════════════════════════════════
 # VISTA 2: DETALLE STEINBRENNER
 # ══════════════════════════════════════════════════
