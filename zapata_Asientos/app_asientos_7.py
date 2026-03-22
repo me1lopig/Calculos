@@ -609,7 +609,7 @@ if modo == "🧮 Panel de Cálculo":
             "z Techo [m]":           df_st["z Techo [m]"],
             "z Base [m]":            df_st["z Base [m]"],
             "Δs Steinbrenner [mm]":  df_st["Δs [mm]"],
-            "Δs Ec.68 [mm]":         df_ec["Δs [mm]"].values,
+            "Δs Elástica [mm]":         df_ec["Δs [mm]"].values,
             "Diferencia [mm]":       (df_st["Δs [mm]"].values - df_ec["Δs [mm]"].values).round(3),
         })
         st.dataframe(df_comp, use_container_width=True, hide_index=True,
@@ -618,7 +618,7 @@ if modo == "🧮 Panel de Cálculo":
                 "z Techo [m]":          st.column_config.NumberColumn("z Techo [m]",         width="small", format="%.2f"),
                 "z Base [m]":           st.column_config.NumberColumn("z Base [m]",           width="small", format="%.2f"),
                 "Δs Steinbrenner [mm]": st.column_config.NumberColumn("Δs Steinbrenner [mm]", width="medium",format="%.3f"),
-                "Δs Ec.elástica [mm]":        st.column_config.NumberColumn("Δs Ec. 68 [mm]",       width="medium",format="%.3f"),
+                "Δs Ec.elástica [mm]":        st.column_config.NumberColumn("Δs Ec. Elástica [mm]",       width="medium",format="%.3f"),
                 "Diferencia [mm]":      st.column_config.NumberColumn("Diferencia [mm]",       width="medium",format="%.3f"),
             }
         )
@@ -664,7 +664,7 @@ elif modo == "📋 Modelo Elástico":
         st.markdown("##### 📐 Deformación unitaria media y asiento")
         st.dataframe(df_ec[["Capa","h_ef [m]","Sub-capas","Δεz med [-]","Δs [mm]"]],
                      use_container_width=True, hide_index=True)
-        st.metric("🟢 Asiento Total Ec. 68",
+        st.metric("🟢 Asiento Total Ec. Elástica",
                   f"{st.session_state.tot_ec*1000:.3f} mm")
 
 # ══════════════════════════════════════════════════

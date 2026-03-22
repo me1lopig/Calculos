@@ -525,8 +525,8 @@ else:
 # ══════════════════════════════════════════════════════════════════════════
 # ÁREA PRINCIPAL
 # ══════════════════════════════════════════════════════════════════════════
-st.title("🏗️ Cálculo Inverso: Presión Admisible por Asiento")
-st.markdown("**Cálculo de la presión de hundimiento elástico limitando la integración a la profundidad de influencia del bulbo**")
+st.title("🏗️ Presión Admisible por Asiento")
+st.markdown("**Cálculo de la presión admisible limitando la integración a la profundidad de influencia del bulbo**")
 st.markdown("---")
 
 if modo == "🧮 Panel de Resultados":
