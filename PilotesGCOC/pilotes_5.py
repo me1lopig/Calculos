@@ -20,7 +20,7 @@ st.markdown("Cálculo estricto según la normativa española (topes 20D, fD por 
 # ══════════════════════════════════════════════════════════════════════════
 if 'df_base' not in st.session_state:
     st.session_state.df_base = pd.DataFrame({
-        "Estrato": ["Rellenos", "Arcilla Blanda", "Arena Densa", "Arcilla Firme"],
+        "Estrato": ["UG-01", "UG-02", "UG-03", "UG-04"],
         "Espesor (m)": [2.0, 5.0, 8.0, 10.0],
         "Gamma Seco (kN/m3)": [18.0, 17.0, 19.0, 20.0],
         "Gamma Sat. (kN/m3)": [20.0, 18.0, 21.0, 21.0],
@@ -42,7 +42,7 @@ tab_datos, tab_tensiones, tab_matriz_punta, tab_matriz_fuste, tab_matriz_total, 
 ])
 
 with tab_datos:
-    st.subheader("Definición de Estratos (Datos de Entrada Puros)")
+    st.subheader("Definición de Unidades")
     df_edit = st.data_editor(
         st.session_state.df_base, 
         key="tabla_estratos",
@@ -73,9 +73,10 @@ with tab_datos:
 # ══════════════════════════════════════════════════════════════════════════
 # BARRA LATERAL: CONFIGURACIÓN 
 # ══════════════════════════════════════════════════════════════════════════
-st.sidebar.header("💧 Nivel Freático y Seguridad")
+st.sidebar.header("💧 Nivel Freático")
 zw = st.sidebar.number_input("Prof. Nivel Freático, zw (m)", min_value=0.0, value=3.0, step=0.5)
 
+st.sidebar.header("🪂 Factor de Seguridad")
 opcion_fs = st.sidebar.selectbox(
     "Situación de Proyecto (FS)",
     ["Casi permanente (FS ≥ 3.00)", "Característica / Transitoria (FS ≥ 2.60)", "Accidental / Sísmica (FS ≥ 2.20)", "Valor Personalizado"]
@@ -269,7 +270,7 @@ def calcular_pilote(D, L, df, zw, fS_val, sigma_tope_mpa):
             auditoria_fuste.append({
                 "Estrato": row["Estrato"] + sufijo,
                 "Cotas (m)": f"{z_sub_top:.1f} a {z_sub_bot:.1f}",
-                "Long. Roce (m)": L_sub,
+                "Long. fuste (m)": L_sub,
                 "σ'_v media (kPa)": sig_v_eff_mid,
                 "Resist. Unitaria τ_f (kPa)": tau_f,
                 "Fuerza Tramo (kN)": Q_tramo
