@@ -110,7 +110,7 @@ D_max = col_d2.number_input("Ø max (m)", value=1.5, min_value=0.3, step=0.1)
 D_step = st.sidebar.number_input("Paso Ø (m)", value=0.3, min_value=0.1)
 
 col_l1, col_l2 = st.sidebar.columns(2)
-L_min_default = min(5.0, float(z_max_total)) 
+L_min_default = min(10.0, float(z_max_total)) 
 L_min = col_l1.number_input("L min (m)", value=L_min_default, min_value=1.0, max_value=float(z_max_total), step=1.0)
 L_max_default = min(20.0, float(z_max_total))
 L_max_default = max(L_max_default, float(L_min))
@@ -300,7 +300,7 @@ def calcular_pilote(D, L, df, zw, fS_val, sigma_tope_mpa):
     }
 
 # ══════════════════════════════════════════════════════════════════════════
-# GENERADOR DEL INFORME EN WORD (VERSIÓN "PREMIUM")
+# GENERADOR DEL INFORME EN WORD
 # ══════════════════════════════════════════════════════════════════════════
 def generar_word_pilotes(df_estratos, fig_tens, df_pivot_geo, df_pivot_final, df_res, fS_val, situacion, D_array, zw_val, sigma_tope, datos_unitarios_df, auditoria_data, fig_auditoria, fig_final):
     doc = Document()
@@ -640,11 +640,11 @@ if st.session_state.calculado:
                 st.markdown(f"- Tope Estructural del Hormigón: {fila_aud['Q_tope_est (kN)']:.0f} kN")
                 st.markdown("---")
                 
-                st.markdown(f"#### 🟫 Desglose por Fuste")
+                st.markdown(f"#### 🟫 Desglose por Fuste (sin minorar)")
                 st.dataframe(pd.DataFrame(fila_aud['auditoria_fuste']).style.format({"Long. Roce (m)": "{:.2f}", "σ'_v media (kPa)": "{:.1f}", "Resist. Unitaria τ_f (kPa)": "{:.2f}", "Fuerza Tramo (kN)": "{:.0f}"}).hide(axis="index"), use_container_width=True)
                 
                 st.markdown("---")
-                st.markdown(f"#### 🔻 Resumen de la Punta")
+                st.markdown(f"#### 🔻 Resumen de la Punta (sin minorar)")
                 st.dataframe(pd.DataFrame([fila_aud['auditoria_punta']]).style.format({
                     "Profundidad Punta (m)": "{:.2f}", 
                     "σ'_v efectiva base (kPa)": "{:.1f}", 
