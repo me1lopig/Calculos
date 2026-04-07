@@ -38,7 +38,7 @@ if 'fig_final_guardada' not in st.session_state: st.session_state.fig_final_guar
 # INTERFAZ PRINCIPAL DE PESTAÑAS 
 # ══════════════════════════════════════════════════════════════════════════
 tab_datos, tab_tensiones, tab_matriz_punta, tab_matriz_fuste, tab_matriz_total, tab_matriz_tope, tab_auditoria, tab_formulacion = st.tabs([
-    "📋 1. Estratigrafía", "🌊 2. Tensiones", "🔻 3. Punta", "👖 4. Fuste", "🌍 5. Total", "🛑 6. Tope Estruct.", "🔍 7. Auditoría", "📖 8. Formulación"
+    "📋 1. Estratigrafía", "🌊 2. Tensiones", "🔻 3. Punta", "🟫 4. Fuste", "🌍 5. Total", "🛑 6. Tope Estruct.", "🔍 7. Auditoría", "📖 8. Formulación"
 ])
 
 with tab_datos:
@@ -63,11 +63,21 @@ with tab_datos:
         st.toast("💡 φ ajustado automáticamente a 0º", icon="⚙️")
         st.rerun()
 
+    # --- VALIDACIÓN ESTRICTA DE ESPESORES ---
+    espesores_invalidos = (df_edit["Espesor (m)"] <= 0).any()
+    if espesores_invalidos:
+        estratos_nulos = df_edit[df_edit["Espesor (m)"] <= 0]["Estrato"].tolist()
+        st.error(
+            f"⛔ **Error de datos:** Los estratos **{', '.join(estratos_nulos)}** tienen "
+            f"espesor ≤ 0 m. Corrige la tabla (debe ser > 0) antes de calcular."
+        )
+        st.session_state.calculado = False
+
     z_max_total = df_edit["Espesor (m)"].sum()
     st.info(f"Profundidad máxima actual del sondeo: **{z_max_total:.2f} m**.")
     st.info("ℹ️ **Nota:** Si la zona de influencia de la punta (3D) sobrepasa la profundidad máxima definida, el software asume que el último estrato se prolonga indefinidamente.")
     st.info("Después de cada modificación hay que pulsar el botón 'Calcular Pilotes' para actualizar los resultados.")
-    if not st.session_state.calculado:
+    if not st.session_state.calculado and not espesores_invalidos:
         st.warning("👈 Haz clic en **'Calcular Pilotes'** en el menú izquierdo para procesar los datos.")
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -118,7 +128,8 @@ L_max = col_l2.number_input("L max (m)", value=L_max_default, min_value=float(L_
 L_step = st.sidebar.number_input("Paso L (m)", value=2.5, min_value=0.5)
 
 st.sidebar.markdown("---")
-if st.sidebar.button("⚙️ Calcular Pilotes", type="primary", use_container_width=True):
+# BOTÓN BLOQUEADO SI HAY ERRORES EN LA TABLA
+if st.sidebar.button("⚙️ Calcular Pilotes", type="primary", use_container_width=True, disabled=espesores_invalidos):
     st.session_state.calculado = True
     st.session_state.word_buffer = None
 
@@ -300,10 +311,11 @@ def calcular_pilote(D, L, df, zw, fS_val, sigma_tope_mpa):
     }
 
 # ══════════════════════════════════════════════════════════════════════════
-# GENERADOR DEL INFORME EN WORD
+# GENERADOR DEL INFORME EN WORD (VERSIÓN EJECUTIVA SIMPLIFICADA)
 # ══════════════════════════════════════════════════════════════════════════
-def generar_word_pilotes(df_estratos, fig_tens, df_pivot_geo, df_pivot_final, df_res, fS_val, situacion, D_array, zw_val, sigma_tope, datos_unitarios_df, auditoria_data, fig_auditoria, fig_final):
+def generar_word_pilotes(df_estratos, fig_tens, df_pivot_geo, df_pivot_final, fS_val, situacion, zw_val, sigma_tope, datos_unitarios_df, fig_final):
     doc = Document()
+    estilo_tabla = 'Light Grid Accent 1' # Estilo elegante de Word
     
     # --- 1. PORTADA PROFESIONAL ---
     doc.add_paragraph('\n\n\n\n')
@@ -354,7 +366,7 @@ def generar_word_pilotes(df_estratos, fig_tens, df_pivot_geo, df_pivot_final, df
     # --- 3. ESTRATIGRAFÍA Y RESISTENCIAS UNITARIAS ---
     doc.add_heading('3. Perfil Estratigráfico', level=1)
     tabla_estratos = doc.add_table(rows=1, cols=len(df_estratos.columns))
-    tabla_estratos.style = 'Table Grid'
+    tabla_estratos.style = estilo_tabla
     hdr_cells = tabla_estratos.rows[0].cells
     for i, column in enumerate(df_estratos.columns): hdr_cells[i].text = str(column)
     for index, row in df_estratos.iterrows():
@@ -365,7 +377,7 @@ def generar_word_pilotes(df_estratos, fig_tens, df_pivot_geo, df_pivot_final, df
     doc.add_paragraph('Fricción media por estrato y presión en punta evaluada en la base de cada capa (sin afectar por fD).')
     if not datos_unitarios_df.empty:
         tabla_unit = doc.add_table(rows=1, cols=len(datos_unitarios_df.columns))
-        tabla_unit.style = 'Table Grid'
+        tabla_unit.style = estilo_tabla
         hdr_unit = tabla_unit.rows[0].cells
         for i, col in enumerate(datos_unitarios_df.columns): hdr_unit[i].text = str(col)
         for index, row in datos_unitarios_df.iterrows():
@@ -380,7 +392,7 @@ def generar_word_pilotes(df_estratos, fig_tens, df_pivot_geo, df_pivot_final, df
     doc.add_heading(f'5. Matriz Admisible TOTAL del Terreno (kN)', level=1)
     doc.add_paragraph('Capacidad portante exclusiva del terreno (Punta + Fuste) dividida por el Factor de Seguridad.')
     tabla_geo = doc.add_table(rows=1, cols=len(df_pivot_geo.columns) + 1)
-    tabla_geo.style = 'Table Grid'
+    tabla_geo.style = estilo_tabla
     hdr_geo = tabla_geo.rows[0].cells
     hdr_geo[0].text = "L / Ø"
     for i, col_name in enumerate(df_pivot_geo.columns): hdr_geo[i+1].text = str(col_name).replace('\n', ' ')
@@ -394,7 +406,7 @@ def generar_word_pilotes(df_estratos, fig_tens, df_pivot_geo, df_pivot_final, df
     doc.add_heading(f'6. Matriz de Diseño FINAL LIMITADA (kN)', level=1)
     doc.add_paragraph('Mínimo entre la Matriz Geotécnica y el Tope Estructural. Los valores marcados con [EST] indican colapso estructural antes que geotécnico.')
     tabla_fin = doc.add_table(rows=1, cols=len(df_pivot_final.columns) + 1)
-    tabla_fin.style = 'Table Grid'
+    tabla_fin.style = estilo_tabla
     hdr_fin = tabla_fin.rows[0].cells
     hdr_fin[0].text = "L / Ø"
     for i, col_name in enumerate(df_pivot_final.columns): hdr_fin[i+1].text = str(col_name).replace('\n', ' ')
@@ -407,55 +419,9 @@ def generar_word_pilotes(df_estratos, fig_tens, df_pivot_geo, df_pivot_final, df
         doc.add_paragraph('\n')
         doc.add_heading('Gráfico: Curvas de Diseño Final', level=2)
         try:
-            img_bytes = fig_final.to_image(format="png", width=750, height=450)
-            doc.add_picture(io.BytesIO(img_bytes), width=Inches(6.0))
+            img_bytes = fig_final.to_image(format="png", width=800, height=500)
+            doc.add_picture(io.BytesIO(img_bytes), width=Inches(6.5))
         except Exception: pass
-
-    doc.add_page_break()
-
-    # --- 5. AUDITORÍA DEL PILOTE DE ESTUDIO ---
-    if auditoria_data is not None and not auditoria_data.empty:
-        fila_aud = auditoria_data.iloc[0]
-        doc.add_heading(f"7. Auditoría Detallada de Pilote (Estudio Específico)", level=1)
-        doc.add_paragraph(f"Se presenta el desglose analítico para un pilote de Diámetro Ø = {fila_aud['D']:.2f} m y Longitud L = {fila_aud['L']:.2f} m.")
-        
-        p_res_aud = doc.add_paragraph()
-        p_res_aud.add_run(f"Carga de Diseño Final: {fila_aud['Q_final (kN)']:.0f} kN ").bold = True
-        p_res_aud.add_run(f"(Controlado por límite {fila_aud['Control']})\n")
-        p_res_aud.add_run(f"  • Capacidad Admisible Terreno: {fila_aud['Q_adm_geo (kN)']:.0f} kN\n")
-        p_res_aud.add_run(f"  • Tope Estructural Hormigón: {fila_aud['Q_tope_est (kN)']:.0f} kN")
-
-        doc.add_heading('7.1 Desglose de Fricción por Fuste', level=2)
-        df_fuste_aud = pd.DataFrame(fila_aud['auditoria_fuste'])
-        if not df_fuste_aud.empty:
-             t_fuste = doc.add_table(rows=1, cols=len(df_fuste_aud.columns))
-             t_fuste.style = 'Table Grid'
-             for i, col in enumerate(df_fuste_aud.columns): t_fuste.rows[0].cells[i].text = str(col)
-             for _, row in df_fuste_aud.iterrows():
-                  row_cells = t_fuste.add_row().cells
-                  for i, val in enumerate(row): 
-                      if isinstance(val, float): row_cells[i].text = f"{val:.2f}"
-                      else: row_cells[i].text = str(val)
-
-        doc.add_heading('7.2 Composición del Bulbo de Punta (6D/3D)', level=2)
-        df_bulbo_aud = pd.DataFrame(fila_aud['auditoria_bulbo'])
-        if not df_bulbo_aud.empty:
-             t_bulbo = doc.add_table(rows=1, cols=len(df_bulbo_aud.columns))
-             t_bulbo.style = 'Table Grid'
-             for i, col in enumerate(df_bulbo_aud.columns): t_bulbo.rows[0].cells[i].text = str(col)
-             for _, row in df_bulbo_aud.iterrows():
-                  row_cells = t_bulbo.add_row().cells
-                  for i, val in enumerate(row): 
-                      if isinstance(val, float): row_cells[i].text = f"{val:.2f}"
-                      else: row_cells[i].text = str(val)
-
-        if fig_auditoria is not None:
-             doc.add_paragraph('\n')
-             doc.add_heading('7.3 Esquema Gráfico del Pilote de Estudio', level=2)
-             try:
-                 img_bytes_aud = fig_auditoria.to_image(format="png", width=600, height=800)
-                 doc.add_picture(io.BytesIO(img_bytes_aud), width=Inches(4.5))
-             except Exception: pass
 
     buffer = io.BytesIO()
     doc.save(buffer)
@@ -630,9 +596,16 @@ if st.session_state.calculado:
             st.subheader("📈 Curvas de Diseño Final (Geotécnico + Estructural)")
             df_plot_final = df_res.copy()
             df_plot_final["Diámetro"] = df_plot_final["D"].apply(lambda x: f"Ø {x:.2f} m")
+            
+            # --- MEJORA: GRÁFICA OBLIGATORIAMENTE A COLOR Y FONDO BLANCO ---
             fig_final = px.line(df_plot_final, x="L", y="Q_final (kN)", color="Diámetro", markers=True,
-                                title="Capacidad de Diseño Final vs. Longitud (Limitada por Tope Estructural)")
+                                title="Capacidad de Diseño Final vs. Longitud (Limitada por Tope Estructural)",
+                                color_discrete_sequence=px.colors.qualitative.Set1, # Fuerza una paleta de colores viva
+                                template="plotly_white") # Fuerza el fondo blanco para el Word
+            
             fig_final.update_layout(xaxis_title="Longitud L (m)", yaxis_title="Carga de Diseño Final (kN)", hovermode="x unified")
+            fig_final.update_traces(line=dict(width=3), marker=dict(size=8)) # Líneas más gruesas para que luzcan en el informe
+            
             st.plotly_chart(fig_final, use_container_width=True)
             st.session_state.fig_final_guardada = fig_final # Guardamos para el Word
 
@@ -647,7 +620,6 @@ if st.session_state.calculado:
             
             if not res_auditoria.empty:
                 fila_aud = res_auditoria.iloc[0]
-                res_auditoria_seleccionada = res_auditoria # Guardamos para el Word
                 
                 st.markdown(f"### ➡️ Carga de Diseño Final: **{fila_aud['Q_final (kN)']:.0f} kN** (Controlado por: **{fila_aud['Control']}**)")
                 st.markdown(f"- Admisible del Terreno: {fila_aud['Q_adm_geo (kN)']:.0f} kN")
@@ -655,7 +627,7 @@ if st.session_state.calculado:
                 st.markdown("---")
                 
                 st.markdown(f"#### 🟫 Desglose por Fuste (sin minorar)")
-                st.dataframe(pd.DataFrame(fila_aud['auditoria_fuste']).style.format({"Long. Roce (m)": "{:.2f}", "σ'_v media (kPa)": "{:.1f}", "Resist. Unitaria τ_f (kPa)": "{:.2f}", "Fuerza Tramo (kN)": "{:.0f}"}).hide(axis="index"), use_container_width=True)
+                st.dataframe(pd.DataFrame(fila_aud['auditoria_fuste']).style.format({"Long. fuste (m)": "{:.2f}", "σ'_v media (kPa)": "{:.1f}", "Resist. Unitaria τ_f (kPa)": "{:.2f}", "Fuerza Tramo (kN)": "{:.0f}"}).hide(axis="index"), use_container_width=True)
                 
                 st.markdown("---")
                 st.markdown(f"#### 🔻 Resumen de la Punta (sin minorar)")
@@ -718,7 +690,6 @@ if st.session_state.calculado:
                 fig_bulbo.update_layout(height=600, margin=dict(l=20, r=20, t=20, b=20), paper_bgcolor="white", plot_bgcolor="white")
                 
                 st.plotly_chart(fig_bulbo, use_container_width=True)
-                st.session_state.fig_auditoria_guardada = fig_bulbo # Guardamos para el Word
 
         with tab_formulacion:
             st.subheader("📖 Ecuaciones y Formulación Geotécnica")
@@ -763,13 +734,14 @@ if st.session_state.calculado:
     if st.sidebar.button("🛠️ Generar Informe (.docx)", type="primary", use_container_width=True):
         if not df_res.empty and df_pivot_geo_global is not None and df_pivot_final_global is not None:
             with st.spinner("Generando documento Word..."):
+                # Hemos eliminado auditoria_data y fig_auditoria de los parámetros pasados
                 buffer = generar_word_pilotes(
-                    df_edit, fig_tens, df_pivot_geo_global, df_pivot_final_global, df_res, 
-                    FS, sit_str, D_arr, zw, sigma_tope_mpa, df_unitarios, res_auditoria_seleccionada,
-                    st.session_state.fig_auditoria_guardada, st.session_state.fig_final_guardada
+                    df_edit, fig_tens, df_pivot_geo_global, df_pivot_final_global, 
+                    FS, sit_str, zw, sigma_tope_mpa, df_unitarios,
+                    st.session_state.fig_final_guardada
                 )
                 st.session_state.word_buffer = buffer
-            st.sidebar.success("✅ ¡Informe generado!")
+            st.sidebar.success("✅ ¡Informe ejecutivo generado!")
         else:
             st.sidebar.error("No hay resultados calculados.")
 
