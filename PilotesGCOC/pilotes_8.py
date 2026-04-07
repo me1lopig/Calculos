@@ -25,7 +25,7 @@ if 'df_base' not in st.session_state:
         "Gamma Seco (kN/m3)": [18.0, 17.0, 19.0, 20.0],
         "Gamma Sat. (kN/m3)": [20.0, 18.0, 21.0, 21.0],
         "Condición": ["Largo Plazo", "Corto Plazo", "Largo Plazo", "Corto Plazo"],
-        "c / cu (kPa)": [0.0, 100.0, 10.0, 150.0],
+        "c / cu (kPa)": [0.0, 100.0, 15.0, 150.0],
         "phi (grados)": [28.0, 0.0, 20.0, 0.0]
     })
 
@@ -278,10 +278,11 @@ def calcular_pilote(D, L, df, zw, fS_val, sigma_tope_mpa):
             if len(puntos_corte) > 2:
                 sufijo = " (Seco)" if z_sub_bot <= zw else " (Sat.)"
             
+            # --- ARREGLO DE PANDAS: L_sub se guarda como float numérico real ---
             auditoria_fuste.append({
                 "Estrato": row["Estrato"] + sufijo,
                 "Cotas (m)": f"{z_sub_top:.1f} a {z_sub_bot:.1f}",
-                "Long. fuste (m)": L_sub,  # <--- ¡EL CAMBIO ESTÁ AQUÍ! Quitamos el f"{...}"
+                "Long. fuste (m)": L_sub,
                 "σ'_v media (kPa)": sig_v_eff_mid,
                 "Resist. Unitaria τ_f (kPa)": tau_f,
                 "Fuerza Tramo (kN)": Q_tramo
@@ -311,7 +312,7 @@ def calcular_pilote(D, L, df, zw, fS_val, sigma_tope_mpa):
     }
 
 # ══════════════════════════════════════════════════════════════════════════
-# GENERADOR DEL INFORME EN WORD (VERSIÓN EJECUTIVA SIMPLIFICADA)
+# GENERADOR DEL INFORME EN WORD
 # ══════════════════════════════════════════════════════════════════════════
 def generar_word_pilotes(df_estratos, fig_tens, df_pivot_geo, df_pivot_final, fS_val, situacion, zw_val, sigma_tope, datos_unitarios_df, fig_final):
     doc = Document()
@@ -580,31 +581,51 @@ if st.session_state.calculado:
 
         df_final_formateada.index = [f"L = {idx:.1f} m" for idx in df_final_formateada.index]
         df_final_formateada.columns = columnas_con_fd
+        
+        # --- MEJORA: FILA DE TOPE ESTRUCTURAL EN LA MATRIZ FINAL ---
+        tope_row = {}
+        for d_val in df_res['D'].unique():
+            q_tope = df_res[df_res['D'] == d_val]['Q_tope_est (kN)'].iloc[0]
+            col_name = [c for c in columnas_con_fd if f"Ø {d_val:.2f} m" in c][0]
+            tope_row[col_name] = f"{q_tope:.0f}"
+            
+        df_tope = pd.DataFrame([tope_row], index=["🛑 TOPE ESTRUCT. (kN)"])
+        df_final_formateada = pd.concat([df_tope, df_final_formateada])
         df_pivot_final_global = df_final_formateada
         
         with tab_matriz_tope:
             st.subheader(f"🛑 Matriz de Carga de Diseño FINAL (kN) - Limitada a {sigma_tope_mpa} MPa")
             st.markdown("*Muestra el valor mínimo entre la Resistencia Geotécnica y el Tope Estructural del Hormigón.*")
             
-            def color_tope(val):
-                color = '#ffcccc' if '[EST]' in str(val) else '#ccffcc'
-                return f'background-color: {color}'
+            # --- MEJORA: ESTILOS DE LA TABLA DE DISEÑO FINAL ---
+            def style_df(df):
+                styles = pd.DataFrame('', index=df.index, columns=df.columns)
+                for r in df.index:
+                    for c in df.columns:
+                        val = str(df.loc[r, c])
+                        if r == "🛑 TOPE ESTRUCT. (kN)":
+                            styles.loc[r, c] = 'background-color: #d3d3d3; font-weight: bold; border-bottom: 2px solid black;'
+                        elif '[EST]' in val:
+                            styles.loc[r, c] = 'background-color: #ffcccc;'
+                        else:
+                            styles.loc[r, c] = 'background-color: #ccffcc;'
+                return styles
             
-            st.dataframe(df_final_formateada.style.applymap(color_tope), use_container_width=True)
+            st.dataframe(df_final_formateada.style.apply(style_df, axis=None), use_container_width=True)
             
             st.markdown("---")
             st.subheader("📈 Curvas de Diseño Final (Geotécnico + Estructural)")
             df_plot_final = df_res.copy()
             df_plot_final["Diámetro"] = df_plot_final["D"].apply(lambda x: f"Ø {x:.2f} m")
             
-            # --- MEJORA: GRÁFICA OBLIGATORIAMENTE A COLOR Y FONDO BLANCO ---
+            # --- MEJORA: GRÁFICA A COLOR Y FONDO BLANCO PARA EL WORD ---
             fig_final = px.line(df_plot_final, x="L", y="Q_final (kN)", color="Diámetro", markers=True,
                                 title="Capacidad de Diseño Final vs. Longitud (Limitada por Tope Estructural)",
-                                color_discrete_sequence=px.colors.qualitative.Set1, # Fuerza una paleta de colores viva
-                                template="plotly_white") # Fuerza el fondo blanco para el Word
+                                color_discrete_sequence=px.colors.qualitative.Set1,
+                                template="plotly_white")
             
             fig_final.update_layout(xaxis_title="Longitud L (m)", yaxis_title="Carga de Diseño Final (kN)", hovermode="x unified")
-            fig_final.update_traces(line=dict(width=3), marker=dict(size=8)) # Líneas más gruesas para que luzcan en el informe
+            fig_final.update_traces(line=dict(width=3), marker=dict(size=8))
             
             st.plotly_chart(fig_final, use_container_width=True)
             st.session_state.fig_final_guardada = fig_final # Guardamos para el Word
@@ -717,7 +738,7 @@ if st.session_state.calculado:
             
             st.markdown("**2.2. Fuste a Largo Plazo (Ley Mohr-Coulomb)**")
             st.latex(r"\tau_f = c' + \sigma'_v \cdot K_0 \cdot \tan(\delta) \le 90 \text{ kPa}")
-            st.markdown(r"*Nota: Para pilotes perforados y hormigonados in situ, el programa adopta de forma automática el valor recomendado por la GCOC de $K_0 \tan(\delta) = 0.30$.*")
+            st.markdown("*Nota: Para pilotes perforados y hormigonados in situ, el programa adopta de forma automática el valor recomendado por la GCOC de $K_0 \tan(\delta) = 0.30$.*")
             
             st.markdown("---")
             st.markdown("### 3. Tope Estructural")
@@ -734,7 +755,6 @@ if st.session_state.calculado:
     if st.sidebar.button("🛠️ Generar Informe (.docx)", type="primary", use_container_width=True):
         if not df_res.empty and df_pivot_geo_global is not None and df_pivot_final_global is not None:
             with st.spinner("Generando documento Word..."):
-                # Hemos eliminado auditoria_data y fig_auditoria de los parámetros pasados
                 buffer = generar_word_pilotes(
                     df_edit, fig_tens, df_pivot_geo_global, df_pivot_final_global, 
                     FS, sit_str, zw, sigma_tope_mpa, df_unitarios,
