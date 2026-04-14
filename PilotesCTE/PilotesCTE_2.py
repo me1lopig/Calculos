@@ -20,7 +20,7 @@ st.markdown("Cálculo de cimentaciones profundas según el Documento Básico SE-
 # ══════════════════════════════════════════════════════════════════════════
 if 'df_base' not in st.session_state:
     st.session_state.df_base = pd.DataFrame({
-        "Estrato": ["Relleno Antrópico", "Arcilla Dura", "Arena Media", "Arena Densa"],
+        "Estrato": ["UG-01", "UG-02", "UG-03", "UG-04"],
         "Espesor (m)": [2.0, 5.0, 8.0, 10.0],
         "Gamma Seco (kN/m3)": [18.0, 19.0, 18.5, 20.0],
         "Gamma Sat. (kN/m3)": [20.0, 20.0, 20.5, 21.0],
