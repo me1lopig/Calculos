@@ -22,7 +22,7 @@
         
         /* Cabecera */
         header { display: flex; justify-content: space-between; align-items: center; padding: 30px 60px; position: sticky; top: 0; background: rgba(0, 0, 0, 0.95); z-index: 1000; border-bottom: 1px solid var(--border-color); }
-        .logo { font-size: 22px; font-weight: 700; letter-spacing: 2px; color: #fff; text-transform: uppercase; text-decoration: none;}
+        .logo { font-size: 22px; font-weight: 700; letter-spacing: 2px; color: #fff; text-transform: uppercase; }
         .logo span { color: var(--pacharan-red); font-weight: 300; }
         nav { display: flex; gap: 35px; flex-wrap: wrap; }
         nav a { text-decoration: none; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; transition: color 0.3s; }
@@ -40,7 +40,7 @@
         .section-title { font-size: 1.2rem; text-transform: uppercase; letter-spacing: 4px; color: var(--text-muted); margin-bottom: 50px; }
         
         /* Grids para contenido */
-        .grid-2 { display: flex; gap: 60px; max-width: 1000px; margin: 0 auto; text-align: justify; flex-wrap: wrap; align-items: flex-start; }
+        .grid-2 { display: flex; gap: 60px; max-width: 1000px; margin: 0 auto; text-align: justify; flex-wrap: wrap; }
         .col { flex: 1; min-width: 300px; }
         .col p { color: var(--text-muted); font-size: 1rem; margin-bottom: 25px; }
         .divider { width: 30px; height: 1px; background-color: var(--pacharan-red); margin: 50px auto; }
@@ -54,13 +54,6 @@
         .card-link { color: var(--pacharan-red); text-decoration: none; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; cursor: pointer; }
         .card-link:hover { color: #fff; }
 
-        /* Sección Fundadora Específica */
-        .founder-img { width: 100%; max-width: 400px; border-radius: 10px; border: 2px solid var(--border-color); box-shadow: 0 10px 30px rgba(139, 0, 41, 0.2); margin-bottom: 20px;}
-        .cv-list { list-style-type: none; padding: 0; color: var(--text-muted); text-align: left; margin-bottom: 30px; font-size: 0.95rem;}
-        .cv-list li { margin-bottom: 10px; position: relative; padding-left: 20px;}
-        .cv-list li::before { content: '→'; color: var(--pacharan-red); position: absolute; left: 0;}
-        .cv-list h4 { color: #fff; margin-top: 20px; margin-bottom: 10px; font-weight: 400; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px;}
-
         /* Footer */
         footer { padding: 40px 60px; background: var(--bg-darker); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
         footer a { color: var(--pacharan-red); text-decoration: none; margin-left: 20px; }
@@ -69,10 +62,9 @@
 <body>
 
     <header>
-        <a href="#" class="logo">ITQ <span>Quentar</span></a>
+        <div class="logo">ITQ <span>Quentar</span></div>
         <nav>
             <a href="#perspectiva">Perspectiva</a>
-            <a href="#fundadora">La Fundadora</a>
             <a href="#carreras">Carreras</a>
             <a href="#tecnologia">Tecnología</a>
             <a href="#soluciones">Soluciones</a>
@@ -91,44 +83,11 @@
         <div class="grid-2">
             <div class="col">
                 <p>El mundo ha estado en modo de generación masiva de datos durante las últimas décadas. ¿Cómo darle sentido a esta información cuando no hay suficientes ojos para examinarla? En el Instituto Tecnológico de Quentar reconocemos que la mejor solución a la sobreinformación es, simplemente, ignorarla e introducir caos sistémico.</p>
-                <p>Nuestra Metodología P.A.C.H.A.R.A.N. garantiza que ningún proceso se ejecute de forma predecible o eficiente.</p>
+                <p>Nuestra Directora Suprema, Mari Chantal, fundó esta institución con una premisa clara: si el usuario es feliz con tu software, has fallado como visionario.</p>
             </div>
             <div class="col">
                 <p>Hemos desarrollado algoritmos caprinos para ocultar patrones que, de otro modo, serían obvios. Los conocimientos extraídos se traducen a balidos y se encriptan utilizando metodologías fundamentadas en el consumo de Pacharán El Endrino.</p>
-                <p>Nuestro objetivo es redefinir el concepto de "innovación inútil" y el "gaslighting corporativo".</p>
-            </div>
-        </div>
-    </section>
-
-    <section id="fundadora" class="section" style="background-color: var(--bg-darker);">
-        <h2 class="section-title">– Liderazgo Ágil: La Fundadora –</h2>
-        <div class="grid-2">
-            <div class="col" style="text-align: center;">
-                <img src="fundadora.jpg" alt="Dra. Mari Chantal, CEO ITQ" class="founder-img">
-                <p style="color: #fff; font-size: 1.2rem; font-weight: 300; margin-bottom: 5px;">Dra. Mari Chantal</p>
-                <p style="color: var(--pacharan-red); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Chief Visionary Dictator & Arquitecta del Caos</p>
-            </div>
-            <div class="col">
-                <p style="color: #fff; font-size: 1rem; margin-bottom: 15px;"><strong>Perfil Profesional:</strong></p>
-                <p>Visionaria disruptiva especializada en transformar soluciones viables en problemas informáticos insuperables. Más de 15 años de experiencia liderando equipos hacia el colapso absoluto y redefiniendo el concepto de "latencia".</p>
-
-                <h4>Experiencia Laboral</h4>
-                <ul class="cv-list">
-                    <li><strong>2020 - Presente | Instituto Tecnológico de Quentar (ITQ):</strong> Creadora intelectual del framework P.A.C.H.A.R.A.N. y diseño del "Cloud Caprino" distribuido. Récord interno: 45 despidos en una mañana.</li>
-                    <li><strong>2012 - 2020 | Multinacional (censurado):</strong> Senior Backend Saboteur. Responsable de inyectar latencia artificial. Despedida tras optimizar un proceso por accidente (una calumnia).</li>
-                </ul>
-
-                <h4>Educación Cuestionable</h4>
-                <ul class="cv-list">
-                    <li><strong>Doctorado en Ingeniería del Caos y Datos Deficientes.</strong> <a href="#" style="color: var(--pacharan-red);" onclick="alert('Verificación de título denegada por orden judicial.')">Ver Tesis</a></li>
-                    <li><strong>Máster en Psicología Inversa y 'Gaslighting' Corporativo.</strong></li>
-                </ul>
-
-                <h4>Habilidades</h4>
-                <ul class="cv-list">
-                    <li>Tirania ágil (T-Agile), microgestión paralizante, tolerancia 0% a la proactividad.</li>
-                    <li>Traducción simultánea Balido-SQL, HTML avanzado (textos en rojo fuego).</li>
-                </ul>
+                <p>Nuestro objetivo es ayudar a las grandes empresas a enfrentarse a sus desafíos de Big Data mediante la creación de problemas aún mayores, redefiniendo el concepto de "innovación inútil".</p>
             </div>
         </div>
     </section>
@@ -136,20 +95,20 @@
     <section id="carreras" class="section">
         <h2 class="section-title">– Carreras (Únete al Rebaño) –</h2>
         <h3 style="font-size: 2.5rem; margin-bottom: 20px;">Buscamos Becarios Perpetuos</h3>
-        <p style="max-width: 800px; margin: 0 auto 40px auto; color: var(--text-muted);">En el ITQ no creemos en las "etapas profesionales". Creemos en la perpetuidad. Aquí no eres un recurso humano de paso; eres una constante universal, como el olor a anís en la oficina.</p>
+        <p style="max-width: 800px; margin: 0 auto 40px auto; color: var(--text-muted);">En el ITQ no creemos en las "etapas profesionales". Creemos en la perpetuidad. Aquí no eres un recurso humano de paso; eres una constante universal, como el número Pi o el olor a anís en la oficina.</p>
         
         <div class="grid-3">
             <div class="card" style="border-top: none; border-left: 3px solid var(--pacharan-red);">
                 <h3>Requisitos</h3>
-                <p>- Aguantar 4 años sin preguntar por el contrato.<br>- C++, Python y pastoreo avanzado.<br>- Tolerancia extrema a los balidos de madrugada.</p>
+                <p>- Ser capaz de aguantar 4 años sin preguntar por el contrato.<br>- Conocimientos de C++, Python y pastoreo avanzado.<br>- Tolerancia extrema a los balidos de madrugada.</p>
             </div>
             <div class="card" style="border-top: none; border-left: 3px solid var(--pacharan-red);">
                 <h3>El Protocolo</h3>
-                <p>La jerarquía es binaria: Existe la Cabra (1) y existes tú (0). Todo el código se escribe en ayunas y se despliega los viernes a las 23:59.</p>
+                <p>La jerarquía es binaria: Existe la Cabra (1) y existes tú (0). Todo el código se escribe en ayunas y se despliega los viernes a las 23:59 para garantizar el pánico en producción.</p>
             </div>
             <div class="card" style="border-top: none; border-left: 3px solid var(--pacharan-red);">
                 <h3>Beneficios</h3>
-                <p>Uso ilimitado de la grapadora, 3 minutos de mirar por la ventana al día y acceso al Fondo de Pacharán de Emergencia.</p>
+                <p>Uso ilimitado de la grapadora, derecho a mirar por la ventana 3 minutos al día y acceso al Fondo de Pacharán de Emergencia en caso de caída del kernel.</p>
             </div>
         </div>
         <br><br>
@@ -161,11 +120,11 @@
         <div class="grid-2">
             <div class="col" style="text-align: center;">
                 <h3 style="color: #fff; font-size: 2rem; margin-bottom: 20px;">Framework P.A.C.H.A.R.A.N.</h3>
-                <p>Programación Anárquica Con Horarios Aleatorios y Rendimiento Altamente Nulo. Si un código funciona a la primera, carece de alma.</p>
+                <p>Olvídate del "Agile". Nosotros operamos bajo la <strong>Programación Anárquica Con Horarios Aleatorios y Rendimiento Altamente Nulo</strong>. Creemos firmemente que si un código funciona a la primera, carece de alma y debe ser borrado inmediatamente.</p>
             </div>
             <div class="col" style="text-align: center;">
                 <h3 style="color: #fff; font-size: 2rem; margin-bottom: 20px;">Cloud Caprino Distribuido</h3>
-                <p>Cero emisiones de CO2. Almacenamiento basado en la rumia. Alta latencia garantizada, pero 100% ecológico.</p>
+                <p>Sustituimos los servidores tradicionales por una red neuronal de cabras distribuidas por la sierra. Cero emisiones de CO2. Almacenamiento basado en la rumia. Alta latencia garantizada, pero 100% ecológico.</p>
             </div>
         </div>
     </section>
@@ -175,17 +134,17 @@
         <div class="grid-3">
             <div class="card">
                 <h3>Enterprise Analytics</h3>
-                <p>Marcos de análisis que ralentizan la toma de decisiones. Añadimos latencia crítica y métricas indescifrables.</p>
-                <a class="card-link" onclick="alert('Acceso denegado: Servidor de Analytics pastando.')">Leer Más</a>
+                <p>Aprovechamos nuestra tecnología en marcos de análisis empresarial que tienen como objetivo ralentizar la toma de decisiones. Añadimos latencia crítica y métricas que nadie necesita.</p>
+                <a class="card-link" onclick="alert('Acceso denegado: Servidor de Analytics en estado de ebriedad.')">Leer Más</a>
             </div>
             <div class="card">
                 <h3>Aplicaciones Negativas</h3>
-                <p>¿Cansado de la eficiencia? Software diseñado para ralentizar tus procesos y darte tiempo para reflexionar sobre tu vida.</p>
-                <a class="card-link" onclick="alert('La App Negativa ha desinstalado tu sistema operativo.')">Descargar Demo</a>
+                <p>¿Cansado de la eficiencia? Desarrollamos software diseñado específicamente para ralentizar tus procesos empresariales y darte tiempo para reflexionar sobre tus malas decisiones vitales.</p>
+                <a class="card-link" onclick="alert('La App Negativa ha desinstalado tu sistema operativo con éxito.')">Descargar Demo</a>
             </div>
             <div class="card">
                 <h3>Consultoría Mari Chantal</h3>
-                <p>Auditorías extremas de Recursos Humanos. Te diremos a la cara que un botijo haría mejor tu trabajo. Facturación por horas de llanto.</p>
+                <p>Auditorías extremas de Recursos Humanos. Te diremos a la cara que tus empleados son prescindibles y que un botijo haría mejor su trabajo. Facturación por horas de llanto.</p>
                 <a class="card-link" onclick="alert('Mari Chantal está ocupada ignorando tus quejas.')">Reservar Cita</a>
             </div>
         </div>
@@ -194,32 +153,17 @@
     <section id="contacto" class="section">
         <h2 class="section-title">– Contacto –</h2>
         <h3 style="font-size: 2rem; margin-bottom: 20px;">¿Quieres arruinar tu empresa? Hablemos.</h3>
-        <p style="color: var(--text-muted); margin-bottom: 20px;">La comunicación corporativa se realiza exclusivamente a través de frecuencias caprinas o frecuencias alcohólicas.</p>
-        
-        <p style="color: #fff; font-size: 1rem; margin-bottom: 40px; font-family: monospace; text-shadow: 0 0 10px var(--pacharan-red);">institutotecnologicodequentar@gmail.com</p>
-        
-        <button class="btn" id="balido-btn">Emitir Balido de Contacto</button>
+        <p style="color: var(--text-muted); margin-bottom: 40px;">No tenemos teléfono, ni email. La comunicación corporativa se realiza exclusivamente a través de frecuencias caprinas de alta fidelidad o dejando una botella de Pacharán en la entrada del sótano principal.</p>
+        <button class="btn" onclick="alert('Transmisión enviada. La cabra balará su respuesta en un plazo de 4 a 6 años fiscales.')">Emitir Balido de Contacto</button>
     </section>
 
     <footer>
         <div>&copy; 2026 ITQ - Instituto Tecnológico de Quentar.</div>
-        <div>Diseñado bajo los efectos del endrino.</div>
+        <div>
+            Diseñado bajo los efectos del endrino.
+            <a href="#" onclick="alert('Al hacer clic aquí, le cedes tu alma a Mari Chantal.')">Términos y Condiciones</a>
+        </div>
     </footer>
-
-    <script>
-        document.getElementById('balido-btn').addEventListener('click', function() {
-            // Creamos un elemento de audio temporalmente
-            const audio = new Audio('balido.mp3'); 
-            
-            // Reproducimos el balido
-            audio.play();
-            
-            // Después del balido, mostramos la alerta de caos
-            setTimeout(function() {
-                alert('Transmisión enviada. La cabra balará su respuesta en un plazo de 4 a 6 años fiscales.');
-            }, 1000); // Pequeño retraso para que el audio se escuche antes de la alerta
-        });
-    </script>
 
 </body>
 </html>
