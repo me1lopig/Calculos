@@ -6,7 +6,7 @@ import io
 import plotly.graph_objects as go
 import plotly.express as px
 from docx import Document
-from docx.shared import Inches, Pt
+from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from datetime import date
 
@@ -113,7 +113,7 @@ L_step = st.sidebar.number_input("Paso L (m)", value=2.5, min_value=0.5)
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# MOTORES DE CÁLCULO CTE DB-SE-C Y GCOC
+# MOTORES DE CÁLCULO CTE DB-SE-C Y PUNZONAMIENTO
 # ══════════════════════════════════════════════════════════════════════════
 def calcular_perfil_tensiones(df, zw, z_max):
     z_max_extendido = z_max + 10.0 
@@ -183,7 +183,7 @@ def calcular_pilote_cte(D, L, df, zw, z_nulo, gamma_r_val, sigma_tope, fp, Kf, f
             })
         z_acum += h_estrato
 
-    # 2. FILTRO DE SEGURIDAD GCOC (Punzonamiento de estrato inferior blando)
+    # 2. FILTRO DE SEGURIDAD (Punzonamiento de estrato inferior blando para justificar CTE 5.2.2)
     qp_original_ponderada = qp_eq_acumulado
     alerta_punzonamiento = None
     z_acum_temp = 0.0
@@ -193,17 +193,15 @@ def calcular_pilote_cte(D, L, df, zw, z_nulo, gamma_r_val, sigma_tope, fp, Kf, f
         z_top_estrato = z_acum_temp
         z_acum_temp += h_estrato
         
-        # Solo miramos estratos situados por debajo de la punta
         if z_top_estrato >= L - 1e-5 and "Corto Plazo" in row["Condición"]:
             H_distancia = z_top_estrato - L
             cu_inferior = row["c / cu (kPa)"]
             
-            # Aplicar ecuación 5.11 de la GCOC
             qp_lim_punzonamiento = 6.0 * ((1.0 + (H_distancia / D))**2) * cu_inferior
             
             if qp_lim_punzonamiento < qp_eq_acumulado:
                 qp_eq_acumulado = qp_lim_punzonamiento
-                alerta_punzonamiento = f"Limitado por punzonamiento (GCOC Ec. 5.11) hacia estrato '{row['Estrato']}' situado a H = {H_distancia:.2f} m."
+                alerta_punzonamiento = f"Limitado por punzonamiento hacia estrato '{row['Estrato']}' situado a H = {H_distancia:.2f} m."
 
     Area_pilote = (math.pi * D**2) / 4.0
     Q_punta = qp_eq_acumulado * Area_pilote
@@ -477,12 +475,25 @@ if st.session_state.calculado:
             
             df_plot_final = df_res.copy()
             df_plot_final["Diámetro"] = df_plot_final["D"].apply(lambda x: f"Ø {x:.2f} m")
-            fig_final = px.line(df_plot_final, x="L", y="Q_final (kN)", color="Diámetro", markers=True, template="plotly_white")
+            fig_final = px.line(df_plot_final, x="L", y="Q_final (kN)", color="Diámetro", markers=True, title="Curvas de Diseño Final (Intersección con Tope Estructural)", template="plotly_white")
+            
+            for trace in fig_final.data:
+                diam_str = trace.name
+                q_tope = df_plot_final[df_plot_final["Diámetro"] == diam_str]["Q_tope_est (kN)"].iloc[0]
+                fig_final.add_hline(
+                    y=q_tope, 
+                    line_dash="dot", 
+                    line_color=trace.line.color, 
+                    annotation_text=f"Tope {diam_str}", 
+                    annotation_position="bottom right",
+                    opacity=0.6
+                )
+            
             st.plotly_chart(fig_final, use_container_width=True)
             st.session_state.fig_final_guardada = fig_final 
 
         with tab_auditoria:
-            st.subheader("🔍 Auditoría (CTE DB-SE-C y GCOC)")
+            st.subheader("🔍 Auditoría (CTE DB-SE-C)")
             col_aud1, col_aud2 = st.columns(2)
             d_aud = col_aud1.selectbox("Diámetro Ø (m):", df_res['D'].unique(), format_func=lambda x: f"{x:.2f}")
             l_aud = col_aud2.selectbox("Longitud L (m):", df_res['L'].unique(), format_func=lambda x: f"{x:.2f}")
@@ -491,7 +502,7 @@ if st.session_state.calculado:
             st.markdown(f"**Carga Final:** {res_aud['Q_final (kN)']:.0f} kN | **R_cd Punta:** {res_aud['Q_punta (kN)']/gamma_r:.0f} kN | **R_cd Fuste:** {res_aud['Q_fuste (kN)']/gamma_r:.0f} kN")
             
             if res_aud['alerta_punzonamiento']:
-                st.error(f"⚠️ **Atención:** {res_aud['alerta_punzonamiento']} La resistencia en punta calculada por el bulbo ({res_aud['auditoria_punta']['q_p original ponderada (kPa)']:.0f} kPa) ha sido recortada a {res_aud['auditoria_punta']['Resist. Unitaria q_p FINAL (kPa)']:.0f} kPa.")
+                st.error(f"⚠️ **Atención:** {res_aud['alerta_punzonamiento']} La resistencia en punta calculada por el bulbo ({res_aud['auditoria_punta']['q_p original ponderada (kPa)']:.0f} kPa) ha sido recortada a {res_aud['auditoria_punta']['Resist. Unitaria q_p FINAL (kPa)']:.0f} kPa para cumplir el CTE.")
             
             st.dataframe(pd.DataFrame(res_aud['auditoria_fuste']).style.format({"Long. fuste (m)": "{:.2f}", "σ'_v media (kPa)": "{:.1f}", "Resist. Unitaria τ_f (kPa)": "{:.2f}", "Fuerza Tramo (kN)": "{:.0f}"}).hide(axis="index"), use_container_width=True)
             st.dataframe(pd.DataFrame(res_aud['auditoria_bulbo']).style.format({"Espesor en bulbo (m)": "{:.2f}", "Participación (%)": "{:.1f}%", "q_p individual (kPa)": "{:.0f}"}).hide(axis="index"), use_container_width=True)
@@ -536,7 +547,7 @@ if st.session_state.calculado:
             st.plotly_chart(fig_bulbo, use_container_width=True)
 
         with tab_formulacion:
-            st.subheader("📖 Ecuaciones y Topes (CTE DB-SE-C y GCOC)")
+            st.subheader("📖 Ecuaciones y Topes (CTE DB-SE-C)")
             st.markdown(f"**Tope Estructural Aplicado:** {sigma_tope_mpa:.2f} MPa")
             st.markdown(f"*(Definido por procedimiento: {desc_tope})*")
             st.markdown("### 1. Punta en Suelos Granulares (F.30)")
@@ -547,14 +558,14 @@ if st.session_state.calculado:
             st.markdown(f"*En este cálculo: $K_f = {Kf_val}$ y $f = {f_rug}$*")
             st.markdown("### 3. Punta en Suelos Finos (F.32)")
             st.markdown(r"$q_p = N_p \cdot c_u$ (Con $N_p = 9$)")
-            st.markdown("### 4. Punzonamiento de Estrato Inferior (GCOC Ec. 5.11)")
+            st.markdown("### 4. Punzonamiento de Estrato Inferior (Apoyo CTE 5.2.2)")
             st.markdown(r"$q_p \le 6 \cdot \left( 1 + \frac{H}{D} \right)^2 \cdot c_u$")
-            st.markdown("*Si bajo la punta existe una capa de suelo blando cohesivo a una distancia H, la resistencia de punta se recorta a este valor máximo para evitar la rotura por punzonamiento.*")
+            st.markdown("*Si bajo la punta existe una capa de suelo blando cohesivo a una distancia H, la resistencia de punta se recorta a este valor máximo para evitar la rotura por punzonamiento y garantizar el cumplimiento del Art. 5.2.2 del Código Técnico.*")
             st.markdown("### 5. Fuste en Suelos Finos (F.33)")
             st.markdown(r"$\tau_f = \frac{100 \cdot c_u}{100 + c_u}$")
 
 # ══════════════════════════════════════════════════════════════════════════
-# GENERADOR DEL INFORME WORD CTE
+# GENERADOR DEL INFORME WORD CTE ENRIQUECIDO CON FOTOGRAFÍAS KALEIDO
 # ══════════════════════════════════════════════════════════════════════════
 def generar_word_cte(df_estratos, fig_tens, df_pivot_geo, df_pivot_final, gamma_val, z_nul, zw_val, sigma_tope, fig_final, desc_t):
     doc = Document()
@@ -564,7 +575,7 @@ def generar_word_cte(df_estratos, fig_tens, df_pivot_geo, df_pivot_final, gamma_
     title = doc.add_paragraph('ANEJO DE CÁLCULO: CIMENTACIONES PROFUNDAS')
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     for run in title.runs: run.font.size, run.font.bold = Pt(24), True
-    subtitle = doc.add_paragraph('Diseño Analítico de Pilotes según CTE DB-SE-C y GCOC')
+    subtitle = doc.add_paragraph('Diseño Analítico de Pilotes según CTE DB-SE-C')
     subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
     for run in subtitle.runs: run.font.size = Pt(16)
         
@@ -585,19 +596,54 @@ def generar_word_cte(df_estratos, fig_tens, df_pivot_geo, df_pivot_final, gamma_
     p_bases.add_run(f'• Factor de Seguridad (Estados Límite): ').bold = True
     p_bases.add_run(f'Coeficiente Parcial de Resistencia γ_R = {gamma_val:.2f}\n')
 
-    doc.add_heading('2. Metodología Analítica (CTE DB-SE-C y GCOC)', level=1)
+    doc.add_heading('2. Perfil Geotécnico y Tensional', level=1)
+    doc.add_paragraph('Definición de las unidades geotécnicas y sus propiedades resistentes características:')
+    
+    tabla_est = doc.add_table(rows=1, cols=len(df_estratos.columns))
+    tabla_est.style = estilo_tabla
+    for i, col in enumerate(df_estratos.columns): tabla_est.rows[0].cells[i].text = str(col)
+    for _, row in df_estratos.iterrows():
+        row_cells = tabla_est.add_row().cells
+        for i, val in enumerate(row): 
+            if isinstance(val, float): row_cells[i].text = f"{val:.2f}"
+            else: row_cells[i].text = str(val)
+
+    if fig_tens is not None:
+        doc.add_paragraph('\nEsquema de tensiones verticales del terreno (totales, efectivas e intersticiales):')
+        # --- CONTROL DE ERRORES PARA KALEIDO (GRÁFICA 1) ---
+        try:
+            img_tens = fig_tens.to_image(format="png", width=700, height=450)
+            doc.add_picture(io.BytesIO(img_tens), width=Inches(6.0))
+        except Exception as e:
+            p_err = doc.add_paragraph(f"⚠️ AVISO: No se pudo insertar la gráfica. Para exportar imágenes es obligatorio instalar 'kaleido' (ejecuta: pip install kaleido en la terminal). \nDetalle del error: {e}")
+            p_err.runs[0].font.color.rgb = RGBColor(255, 0, 0) 
+
+    doc.add_heading('3. Metodología Analítica (CTE DB-SE-C)', level=1)
     p_metodo = doc.add_paragraph()
     p_metodo.add_run('Resistencia por Punta (qp):\n').bold = True
     p_metodo.add_run('• Suelos Finos (Corto Plazo): qp = Np · cu.\n')
     p_metodo.add_run('• Suelos Granulares (Largo Plazo): qp = fp · σ\'vp · Nq ≤ 20 MPa.\n')
-    p_metodo.add_run('• Punzonamiento (GCOC 5.11): Si existen estratos arcillosos por debajo de la punta, la resistencia máxima se evalúa mediante la expresión qp ≤ 6(1+H/D)²·cu.\n')
+    p_metodo.add_run('• Punzonamiento (Justificación CTE 5.2.2): Si existen estratos arcillosos por debajo de la punta, la resistencia máxima se evalúa mediante formulaciones complementarias acotando el valor a qp ≤ 6(1+H/D)²·cu.\n')
     p_metodo.add_run('NOTA: El entorno de evaluación general de la punta se promedia ponderadamente en un bulbo de 6 diámetros por encima y 3 diámetros por debajo para todo tipo de suelos, respetando los topes por punzonamiento inferiores si los hubiese.\n\n')
     
     p_metodo.add_run('Resistencia por Fuste (τf):\n').bold = True
     p_metodo.add_run('• Corto Plazo: τf = 100·cu / (100 + cu). Afectado por coef. reductor 0.8 si el fuste es de acero.\n')
     p_metodo.add_run('• Largo Plazo: τf = σ\'v · Kf · f · tg(φ) ≤ 120 kPa.\n\n')
     
-    doc.add_heading('3. Resultados Matriciales de Diseño (kN)', level=1)
+    doc.add_heading('4. Matriz de Capacidad Geotécnica Estricta (kN)', level=1)
+    doc.add_paragraph('Valores de hundimiento geotécnico minorados por el Coeficiente Parcial de Resistencia (sin limitar por tope estructural).')
+    tabla_geo = doc.add_table(rows=1, cols=len(df_pivot_geo.columns) + 1)
+    tabla_geo.style = estilo_tabla
+    hdr_geo = tabla_geo.rows[0].cells
+    hdr_geo[0].text = "L / Ø"
+    for i, col_name in enumerate(df_pivot_geo.columns): hdr_geo[i+1].text = str(col_name)
+    for index, row in df_pivot_geo.iterrows():
+        row_cells = tabla_geo.add_row().cells
+        row_cells[0].text = str(index)
+        for i, val in enumerate(row): row_cells[i+1].text = f"{val:.0f}"
+
+    doc.add_heading('5. Matriz de Diseño Final Limitada (kN)', level=1)
+    doc.add_paragraph('Valores finales de diseño. Si la carga está limitada por la resistencia del material del pilote, se indica con la etiqueta [EST].')
     tabla_fin = doc.add_table(rows=1, cols=len(df_pivot_final.columns) + 1)
     tabla_fin.style = estilo_tabla
     hdr_fin = tabla_fin.rows[0].cells
@@ -611,10 +657,13 @@ def generar_word_cte(df_estratos, fig_tens, df_pivot_geo, df_pivot_final, gamma_
     if fig_final is not None:
         doc.add_paragraph('\n')
         doc.add_heading('Gráfico: Curvas de Diseño Final', level=2)
+        # --- CONTROL DE ERRORES PARA KALEIDO (GRÁFICA 2) ---
         try:
             img_bytes = fig_final.to_image(format="png", width=800, height=500)
             doc.add_picture(io.BytesIO(img_bytes), width=Inches(6.5))
-        except Exception: pass
+        except Exception as e:
+            p_err2 = doc.add_paragraph(f"⚠️ AVISO: No se pudo insertar la gráfica. Para exportar imágenes es obligatorio instalar 'kaleido' (ejecuta: pip install kaleido en la terminal). \nDetalle del error: {e}")
+            p_err2.runs[0].font.color.rgb = RGBColor(255, 0, 0) 
 
     buffer = io.BytesIO()
     doc.save(buffer)
@@ -642,7 +691,7 @@ if st.session_state.calculado:
         st.sidebar.download_button(
             label="⬇️ Descargar Informe", 
             data=st.session_state.word_buffer, 
-            file_name="Anejo_Pilotes_CTE_GCOC.docx", 
+            file_name="Anejo_Pilotes_CTE.docx", 
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
             use_container_width=True
         )
