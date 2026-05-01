@@ -8,18 +8,17 @@ from docx import Document
 from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
+from scipy.optimize import brentq
 
 # ══════════════════════════════════════════════════════════════════════════
 # CONSTANTES
 # ══════════════════════════════════════════════════════════════════════════
 GAMMA_AGUA = 9.81  # kN/m³
-P_REF = 100.0      # Presión ficticia de referencia para el escalado elástico (kPa)
 
 # ══════════════════════════════════════════════════════════════════════════
 # TENSIONES DE HOLL — BAJO EL CENTRO (compartido por ambos métodos)
 # ══════════════════════════════════════════════════════════════════════════
 def holl_esquina(p, B, L, z):
-    """Tensiones bajo la ESQUINA de una carga rectangular BxL (Solución de Holl)."""
     if z <= 1e-6:
         return p, p / 2.0, p / 2.0
     R1 = np.sqrt(L**2 + z**2)
@@ -32,7 +31,6 @@ def holl_esquina(p, B, L, z):
     return sz, sx, sy
 
 def holl_centro(p, B, L, z):
-    """Tensiones bajo el CENTRO: superposición ×4 de cuadrantes B/2 × L/2."""
     sz, sx, sy = holl_esquina(p, B/2.0, L/2.0, z)
     return 4*sz, 4*sx, 4*sy
 
@@ -53,9 +51,8 @@ def phi2(m, n):
     return (m/np.pi)*np.arctan(n/(m*np.sqrt(1+m**2+n**2)))
 
 def s_z(p, B, E, nu, z, L):
-    """Asiento teórico acumulado desde superficie hasta z (Steinbrenner)."""
     n = L/B
-    m = z/B  # Factor de profundidad corregido
+    m = z/B
     corchete = (1-nu**2)*phi1(m,n) - (1-nu-2*nu**2)*phi2(m,n)
     return (p*B/E)*corchete
 
@@ -91,12 +88,12 @@ def calcular_steinbrenner(p, B, L, df, z_max):
             "m_techo":            round(m_t, 4),
             "φ1_techo":           round(phi1(m_t, n_factor), 4),
             "φ2_techo":           round(phi2(m_t, n_factor), 4),
-            "s_techo [mm]":       s_t*1000,
+            "s_techo [mm]":       round(s_t*1000, 3),
             "m_base":             round(m_b, 4),
             "φ1_base":            round(phi1(m_b, n_factor), 4),
             "φ2_base":            round(phi2(m_b, n_factor), 4),
-            "s_base [mm]":        s_b*1000,
-            "Δs [mm]":            ds*1000,
+            "s_base [mm]":        round(s_b*1000, 3),
+            "Δs [mm]":            round(ds*1000, 3),
         })
         z_actual = z_base
 
@@ -125,11 +122,7 @@ def calcular_ec68(p, B, L, df, z_max, dz_sub=0.25):
         n_sub  = max(1, int(np.ceil(h_ef / dz_sub)))
         dz     = h_ef / n_sub
 
-        ds_capa  = 0.0
-        sz_medio = 0.0
-        sx_medio = 0.0
-        sy_medio = 0.0
-        ez_medio = 0.0
+        ds_capa, sz_medio, sx_medio, sy_medio, ez_medio = 0.0, 0.0, 0.0, 0.0, 0.0
 
         for k in range(n_sub):
             z_sub_t = z_techo + k * dz
@@ -156,18 +149,18 @@ def calcular_ec68(p, B, L, df, z_max, dz_sub=0.25):
             "z Base [m]":    round(z_base,   3),
             "h_ef [m]":      round(h_ef,     3),
             "Sub-capas":      n_sub,
-            "Δσz med [kPa]": sz_medio,
-            "Δσx med [kPa]": sx_medio,
-            "Δσy med [kPa]": sy_medio,
-            "Δεz med [-]":   ez_medio,
-            "Δs [mm]":       ds_capa*1000,
+            "Δσz med [kPa]": round(sz_medio, 3),
+            "Δσx med [kPa]": round(sx_medio, 3),
+            "Δσy med [kPa]": round(sy_medio, 3),
+            "Δεz med [-]":   round(ez_medio, 6),
+            "Δs [mm]":        round(ds_capa*1000, 3),
         })
         z_actual = z_base
 
     return total, pd.DataFrame(resultados)
 
 # ══════════════════════════════════════════════════════════════════════════
-# TENSIÓN EFECTIVA
+# TENSIÓN EFECTIVA Y ZONA DE INFLUENCIA
 # ══════════════════════════════════════════════════════════════════════════
 def sigma_v0(z, df, NF):
     sv = 0.0; z_act = 0.0
@@ -185,6 +178,49 @@ def sigma_v0(z, df, NF):
         z_act = zb
     return sv
 
+def z_influencia_seleccionada(p, B, L, df, NF, z_max_usuario, criterio_elegido):
+    et = float(pd.to_numeric(df["Espesor (m)"]).sum())
+    
+    if criterio_elegido == "Límite Geométrico (2B)":
+        z_calc = 2.0 * B
+    elif criterio_elegido == "Límite Geométrico (3B)":
+        z_calc = 3.0 * B
+    else: 
+        z = 0.05
+        z_calc = et
+        while z <= et:
+            dsz, _, _ = holl_centro(p, B, L, z)
+            sv = sigma_v0(z, df, NF)
+            if sv > 0 and dsz <= 0.20 * sv:
+                z_calc = z
+                break
+            z += 0.05
+            
+    return min(z_calc, et, z_max_usuario)
+
+# ══════════════════════════════════════════════════════════════════════════
+# SOLVER INVERSO: ENCONTRAR PRESION ADMISIBLE
+# ══════════════════════════════════════════════════════════════════════════
+def encontrar_presion_admisible(metodo_func, s_max_objetivo, B, L, df_terreno, NF, z_max_usuario, criterio_elegido, dz_sub=None):
+    def diferencia_asiento(p_prueba):
+        zi_actual = z_influencia_seleccionada(p_prueba, B, L, df_terreno, NF, z_max_usuario, criterio_elegido)
+        if dz_sub is None:
+            asiento_calc, _ = metodo_func(p_prueba, B, L, df_terreno, zi_actual)
+        else:
+            asiento_calc, _ = metodo_func(p_prueba, B, L, df_terreno, zi_actual, dz_sub)
+        return asiento_calc - s_max_objetivo
+
+    try:
+        p_optima = brentq(diferencia_asiento, 1.0, 5000.0, xtol=0.1)
+        zi_final = z_influencia_seleccionada(p_optima, B, L, df_terreno, NF, z_max_usuario, criterio_elegido)
+        if dz_sub is None:
+            tot, df_res = metodo_func(p_optima, B, L, df_terreno, zi_final)
+        else:
+            tot, df_res = metodo_func(p_optima, B, L, df_terreno, zi_final, dz_sub)
+        return p_optima, tot, df_res, zi_final
+    except ValueError:
+        return None, 0.0, pd.DataFrame(), 0.0
+
 # ══════════════════════════════════════════════════════════════════════════
 # INFORME WORD ESTÉTICO
 # ══════════════════════════════════════════════════════════════════════════
@@ -197,10 +233,8 @@ def _fig_bytes(fig):
 def _add_styled_table(doc, df, title):
     h = doc.add_heading(title, level=2)
     h.runs[0].font.color.rgb = RGBColor(31, 73, 125)
-    
     df = df.astype(str)
     table = doc.add_table(rows=1+len(df), cols=len(df.columns))
-    
     table.style = 'Light Shading Accent 1' 
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     
@@ -224,10 +258,10 @@ def _add_styled_table(doc, df, title):
                 paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 for run in paragraph.runs:
                     run.font.size = Pt(8)
-                    
     doc.add_paragraph()
 
-def generar_word(B, L, s_adm, p_adm_st, p_adm_ec, NF, z_max, factor_bulbo, df_terreno,
+# ORDEN CORREGIDO: criterio_bulbo antes de df_terreno
+def generar_word(B, L, s_max_mm, p_st, p_ec, NF, z_max, zi_final, criterio_bulbo, df_terreno,
                  df_st, df_ec, fig_bulbo_bytes):
     fecha = datetime.now().strftime("%d de %B de %Y — %H:%M")
     doc = Document()
@@ -237,10 +271,9 @@ def generar_word(B, L, s_adm, p_adm_st, p_adm_ec, NF, z_max, factor_bulbo, df_te
         sec.bottom_margin = Cm(2.5)
         sec.left_margin = Cm(2.0) 
         sec.right_margin = Cm(2.0)
-        
         footer = sec.footer
         footer_para = footer.paragraphs[0]
-        footer_para.text = f"Memoria de Cálculo de Carga Admisible — Generado automáticamente el {fecha}"
+        footer_para.text = f"Memoria de Cálculo Geotécnico — Generado automáticamente el {fecha}"
         footer_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         footer_para.runs[0].font.size = Pt(8)
         footer_para.runs[0].font.color.rgb = RGBColor(128, 128, 128)
@@ -260,23 +293,25 @@ def generar_word(B, L, s_adm, p_adm_st, p_adm_ec, NF, z_max, factor_bulbo, df_te
     doc.add_paragraph()
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r_title = p_title.add_run('CÁLCULO DE PRESIÓN ADMISIBLE (POR ASIENTO)')
+    r_title = p_title.add_run('CÁLCULO DE PRESIÓN ADMISIBLE (ELS)')
     r_title.bold = True
-    r_title.font.size = Pt(20)
+    r_title.font.size = Pt(22)
     r_title.font.color.rgb = RGBColor(23, 54, 93) 
     
     doc.add_paragraph()
     
-    doc.add_heading('1. Datos de Diseño', level=1)
-    table_params = doc.add_table(rows=5, cols=2)
+    doc.add_heading('1. Datos de Entrada', level=1)
+    
+    table_params = doc.add_table(rows=6, cols=2)
     table_params.style = 'Light Shading Accent 1'
     
     data = [
         ('Dimensiones en planta (B × L)', f'{B:.2f} m  ×  {L:.2f} m'),
-        ('Asiento Máximo Admisible (s_adm)', f'{s_adm:.1f} mm'),
+        ('Asiento máximo admisible', f'{s_max_mm:.1f} mm'),
         ('Profundidad del Nivel Freático (NF)', f'{NF:.1f} m'),
-        (f'Profundidad de Integración ({factor_bulbo}B)', f'{z_max:.2f} m'),
-        ('Criterio de análisis elástico', 'Tensión bajo centro (Escalado lineal directo)')
+        ('Criterio de Bulbo Seleccionado', criterio_bulbo),
+        ('Profundidad de influencia activa (zi)', f'{zi_final:.2f} m'),
+        ('Profundidad de bulbo manual', f'{z_max:.1f} m')
     ]
     
     for i, (key, val) in enumerate(data):
@@ -291,7 +326,7 @@ def generar_word(B, L, s_adm, p_adm_st, p_adm_ec, NF, z_max, factor_bulbo, df_te
     _add_styled_table(doc, df_terreno, '1.1 Estratigrafía del Perfil Geotécnico')
     doc.add_page_break()
 
-    doc.add_heading('2. Presión Neta Admisible Calculada', level=1)
+    doc.add_heading('2. Resultados: Presiones Máximas Admisibles', level=1)
     
     table_res = doc.add_table(rows=1, cols=2)
     table_res.style = 'Light Shading Accent 1'
@@ -303,39 +338,34 @@ def generar_word(B, L, s_adm, p_adm_st, p_adm_ec, NF, z_max, factor_bulbo, df_te
     
     p1 = c1.paragraphs[0]
     p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r1a = p1.add_run('Presión Admisible (Steinbrenner)\n')
+    r1a = p1.add_run('Presión máx. Steinbrenner\n')
     r1a.font.size = Pt(11); r1a.font.color.rgb = RGBColor(89, 89, 89); r1a.bold = True
-    r1b = p1.add_run(f'{p_adm_st:.1f} kPa')
+    r1b = p1.add_run(f'{p_st:.1f} kPa')
     r1b.font.size = Pt(16); r1b.bold = True; r1b.font.color.rgb = RGBColor(23, 54, 93)
     
     p2 = c2.paragraphs[0]
     p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r2a = p2.add_run('Presión Admisible (Ec. Elástica)\n')
+    r2a = p2.add_run('Presión máx. Ec. Elástica\n')
     r2a.font.size = Pt(11); r2a.font.color.rgb = RGBColor(89, 89, 89); r2a.bold = True
-    r2b = p2.add_run(f'{p_adm_ec:.1f} kPa')
+    r2b = p2.add_run(f'{p_ec:.1f} kPa')
     r2b.font.size = Pt(16); r2b.bold = True; r2b.font.color.rgb = RGBColor(33, 115, 70)
 
     doc.add_paragraph()
-    doc.add_paragraph()
+    p_info = doc.add_paragraph('Desglose tensional y deformacional para la presión límite evaluada por cada método.')
+    p_info.runs[0].font.color.rgb = RGBColor(89, 89, 89)
     
-    df_comp = pd.DataFrame({
-        "Capa": df_st["Capa"],
-        "Asiento aportado [mm]": df_st["Δs [mm]"].round(3)
-    })
-    _add_styled_table(doc, df_comp, '2.1 Distribución del asiento límite por estrato')
+    _add_styled_table(doc, df_st, f'2.1 Método de Steinbrenner (Evaluado a p = {p_st:.1f} kPa)')
     doc.add_page_break()
+    _add_styled_table(doc, df_ec, f'2.2 Método Elástico (Evaluado a p = {p_ec:.1f} kPa)')
 
-    doc.add_heading('3. Cuadro de Tensiones (Correspondientes a p_adm)', level=1)
-    _add_styled_table(doc, df_ec.round(3), 'Desglose Ec. Elástica para la Presión Admisible')
     doc.add_page_break()
-
-    doc.add_heading('4. Gráfica del Bulbo de Tensiones Límite', level=1)
+    doc.add_heading('3. Gráfica del Bulbo de Tensiones', level=1)
     p_fig = doc.add_paragraph()
     p_fig.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_fig = p_fig.add_run()
     r_fig.add_picture(fig_bulbo_bytes, width=Cm(14))
     
-    nota = doc.add_paragraph(f'Evolución de las tensiones para la Presión Admisible restrictiva. La línea discontinua marca la profundidad de integración {factor_bulbo}B ({z_max:.2f} m).')
+    nota = doc.add_paragraph(f'Evolución en profundidad de las tensiones bajo el centro geométrico de la zapata. Gráfica trazada para la presión admisible del Método Elástico (p = {p_ec:.1f} kPa).')
     nota.alignment = WD_ALIGN_PARAGRAPH.CENTER
     nota.runs[0].font.size = Pt(9)
     nota.runs[0].font.italic = True
@@ -369,121 +399,95 @@ if 'df_terreno' not in st.session_state:
 # CONFIGURACIÓN UI
 # ══════════════════════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="Carga Admisible por Asiento",
+    page_title="Cálculo de Presión Admisible (ELS)",
     layout="wide", page_icon="🏗️"
 )
 
 st.sidebar.title("Navegación")
 modo = st.sidebar.radio("Vista:", [
     "🧮 Panel de Resultados",
-    "📋 Detalle Capas Escalas",
-    "📉 Bulbo Límite",
-    "📖 Fundamento Teórico y Algoritmo",
+    "📋 Detalle Steinbrenner",
+    "📋 Detalle Elástico",
+    "📉 Bulbo de Presiones",
+    "📖 Fundamento Teórico",
 ])
 
 st.sidebar.markdown("---")
 st.sidebar.header("📥 Datos de Entrada")
 
-B     = st.sidebar.number_input("Ancho (B) [m]",             min_value=0.1, value=2.0,   step=0.1,  on_change=reset_calculo)
-L     = st.sidebar.number_input("Longitud (L) [m]",          min_value=0.1, value=3.0,   step=0.1,  on_change=reset_calculo)
-s_adm = st.sidebar.number_input("Asiento Admisible [mm]",    min_value=1.0, value=25.0,  step=1.0, on_change=reset_calculo)
-NF    = st.sidebar.number_input("Nivel Freático [m]",        min_value=0.0, value=100.0, step=0.5,  on_change=reset_calculo)
+B  = st.sidebar.number_input("Ancho (B) [m]",             min_value=0.1, value=2.0,   step=0.1,  on_change=reset_calculo)
+L  = st.sidebar.number_input("Longitud (L) [m]",          min_value=0.1, value=3.0,   step=0.1,  on_change=reset_calculo)
+s_max_mm = st.sidebar.number_input("Asiento máx admisible [mm]", min_value=1.0, value=25.0, step=1.0, on_change=reset_calculo)
+NF = st.sidebar.number_input("Nivel Freático [m]",         min_value=0.0, value=100.0, step=0.5,  on_change=reset_calculo)
+
+s_max_m = s_max_mm / 1000.0
 
 if L < B:
     B, L = L, B
-    st.sidebar.warning("⚠️ L<B: valores intercambiados automáticamente.")
+    st.sidebar.warning("⚠️ L<B: valores intercambiados.")
 
-# Calculamos el espesor total de los estratos definidos en la tabla actual
-espesor_total = float(pd.to_numeric(st.session_state.df_terreno["Espesor (m)"]).sum())
+espesor_total = max(float(pd.to_numeric(st.session_state.df_terreno["Espesor (m)"]).sum()), 0.1)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("📐 Geometría de Integración")
+st.sidebar.subheader("📐 Criterio de Bulbo de Presiones")
 
-factor_bulbo = st.sidebar.selectbox(
-    "Profundidad del bulbo activo",
-    options=[1.5, 2.0],
-    format_func=lambda x: f"{x}B",
-    on_change=reset_calculo,
-    help="Define el espesor del terreno sobre el que se integrarán las deformaciones."
+criterio_bulbo = st.sidebar.selectbox(
+    "Selecciona el criterio limitante:",
+    options=["Criterio EC7 (Δσz ≤ 0.20 σ'v0)", "Límite Geométrico (2B)", "Límite Geométrico (3B)"],
+    index=0,
+    on_change=reset_calculo
 )
 
-# Determinamos profundidad estática basada en la selección
-z_max_calc = factor_bulbo * min(B, L)
+z_max_user = st.sidebar.number_input(
+    "Profundidad de bulbo manual [m]",
+    min_value=0.1, max_value=espesor_total,
+    value=float(espesor_total),
+    step=0.1, on_change=reset_calculo,
+    help="Límite físico forzado adicional. El cálculo se detendrá aquí si el criterio seleccionado arriba llega más profundo."
+)
 
-# ALERTA CRÍTICA SI EL BULBO SUPERA LOS ESTRATOS
-if z_max_calc > espesor_total:
-    st.sidebar.error(
-        f"🚨 **¡ALERTA GEOTÉCNICA!**\n\n"
-        f"El bulbo de integración (**{z_max_calc:.2f} m**) supera la profundidad total de los "
-        f"estratos definidos (**{espesor_total:.2f} m**).\n\n"
-        f"**Añade más espesor en la tabla de terreno.**"
-    )
-else:
-    st.sidebar.success(f"💡 **Bulbo fijado en {factor_bulbo}B = {z_max_calc:.2f} m**\n\n*(Terreno disponible: {espesor_total:.2f} m)*")
-
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔧 Precisión Ecuación Elástica")
 dz_sub = st.sidebar.select_slider(
-    "Tamaño de subcapa elástica (dz) [m]",
+    "Tamaño de subcapa (dz) [m]",
     options=[2.0, 1.0, 0.5, 0.25, 0.10, 0.05],
     value=0.10,
     on_change=reset_calculo
 )
 
 # ══════════════════════════════════════════════════════════════════════════
-# BOTÓN CALCULAR (THE DUMMY LOAD ALGORITHM)
+# BOTÓN CALCULAR (SOLVER INVERSO)
 # ══════════════════════════════════════════════════════════════════════════
 st.sidebar.markdown("---")
 if st.sidebar.button("🚀 Calcular Presión Admisible", type="primary", use_container_width=True):
-    # 1. Calculamos usando la carga de referencia
-    tot_st_ref, df_st = calcular_steinbrenner(P_REF, B, L, st.session_state.df_terreno, z_max_calc)
-    tot_ec_ref, df_ec = calcular_ec68(        P_REF, B, L, st.session_state.df_terreno, z_max_calc, dz_sub)
+    with st.spinner("Iterando presiones admisibles..."):
+        p_st, tot_st, df_st, zi_st = encontrar_presion_admisible(
+            calcular_steinbrenner, s_max_m, B, L, st.session_state.df_terreno, NF, z_max_user, criterio_bulbo
+        )
+        
+        p_ec, tot_ec, df_ec, zi_ec = encontrar_presion_admisible(
+            calcular_ec68, s_max_m, B, L, st.session_state.df_terreno, NF, z_max_user, criterio_bulbo, dz_sub
+        )
 
-    # 2. Factores de Escala (Linealidad)
-    # Convertimos tot (metros) a milímetros para la proporción
-    scale_st = s_adm / (tot_st_ref * 1000)
-    scale_ec = s_adm / (tot_ec_ref * 1000)
-
-    # 3. Presiones Admisibles Finales
-    p_adm_st = P_REF * scale_st
-    p_adm_ec = P_REF * scale_ec
-
-    # 4. Escalamos los Dataframes para que reflejen la presión admisible
-    df_st['s_techo [mm]'] *= scale_st
-    df_st['s_base [mm]']  *= scale_st
-    df_st['Δs [mm]']      *= scale_st
-
-    df_ec['Δσz med [kPa]'] *= scale_ec
-    df_ec['Δσx med [kPa]'] *= scale_ec
-    df_ec['Δσy med [kPa]'] *= scale_ec
-    df_ec['Δεz med [-]']   *= scale_ec
-    df_ec['Δs [mm]']       *= scale_ec
-
-    st.session_state.p_adm_st = p_adm_st
-    st.session_state.p_adm_ec = p_adm_ec
-    st.session_state.df_st    = df_st
-    st.session_state.df_ec    = df_ec
-    st.session_state.dz_used  = dz_sub
-    st.session_state.z_max_calc = z_max_calc
-    st.session_state.factor_bulbo = factor_bulbo 
-    st.session_state.calculo_realizado = True
+        st.session_state.p_st = p_st
+        st.session_state.p_ec = p_ec
+        st.session_state.df_st = df_st
+        st.session_state.df_ec = df_ec
+        st.session_state.zi_final = max(zi_st, zi_ec) 
+        st.session_state.dz_used = dz_sub
+        st.session_state.criterio_usado = criterio_bulbo
+        st.session_state.calculo_realizado = True
 
 # ══════════════════════════════════════════════════════════════════════════
 # BOTÓN INFORME WORD
 # ══════════════════════════════════════════════════════════════════════════
 st.sidebar.markdown("---")
-if st.session_state.calculo_realizado:
-    p_adm_st = st.session_state.p_adm_st
-    p_adm_ec = st.session_state.p_adm_ec
-    df_st    = st.session_state.df_st
-    df_ec    = st.session_state.df_ec
-    z_max    = st.session_state.z_max_calc
-    factor_b = st.session_state.factor_bulbo
-
-    p_plot = min(p_adm_st, p_adm_ec)
-
-    z_vals = np.linspace(0.05, z_max * 1.5, 200) 
-    sz_v,sx_v,sy_v,sv0_v = [],[],[],[]
+if st.session_state.calculo_realizado and st.session_state.p_ec is not None:
+    p_ref = st.session_state.p_ec 
+    z_vals = np.linspace(0.05, espesor_total, 200)
+    sz_v, sx_v, sy_v, sv0_v = [], [], [], []
     for z in z_vals:
-        sz,sx,sy = holl_centro(p_plot, B, L, z)
+        sz, sx, sy = holl_centro(p_ref, B, L, z)
         sz_v.append(sz); sx_v.append(sx); sy_v.append(sy)
         sv0_v.append(sigma_v0(z, st.session_state.df_terreno, NF)*0.20)
         
@@ -491,15 +495,15 @@ if st.session_state.calculo_realizado:
     ax_b.plot(sz_v, z_vals, label=r"$\Delta\sigma_z$", color='red', lw=2)
     ax_b.plot(sx_v, z_vals, label=r"$\Delta\sigma_x$", color='blue', ls='--')
     ax_b.plot(sy_v, z_vals, label=r"$\Delta\sigma_y$", color='purple', ls='-.')
-    ax_b.plot(sv0_v,z_vals, label=r"$0.20\sigma'_{v0}$ (Ref. EC7)", color='green', lw=1, ls=':')
-    ax_b.axhline(y=z_max, color='orange', ls='--', lw=2, label=f'Corte Integración ({factor_b}B) = {z_max:.2f} m')
-    
-    if NF < z_max * 1.5:
+    ax_b.plot(sv0_v,z_vals, label=r"$0.20\sigma'_{v0}$", color='green', lw=2)
+    zi_plot = st.session_state.zi_final
+    if zi_plot <= espesor_total:
+        ax_b.axhline(y=zi_plot, color='orange', ls=':', lw=1.5, label=f'z_i={zi_plot:.2f} m')
+    if NF < espesor_total:
         ax_b.axhline(y=NF, color='deepskyblue', ls='-.', lw=1.2, label=f'NF={NF:.1f} m')
-        
-    ax_b.set_ylim(z_max * 1.5, 0); ax_b.set_xlim(left=0)
+    ax_b.set_ylim(espesor_total, 0); ax_b.set_xlim(left=0)
     ax_b.set_xlabel("Tensión (kPa)"); ax_b.set_ylabel("Profundidad z (m)")
-    ax_b.set_title(f"Bulbo Límite (p = {p_plot:.1f} kPa)"); ax_b.legend(fontsize=8)
+    ax_b.set_title(f"Bulbo para p_adm = {p_ref:.1f} kPa"); ax_b.legend(fontsize=8)
     ax_b.grid(True, linestyle=':', alpha=0.4)
     ax_b.spines[['top','right']].set_visible(False)
     plt.tight_layout()
@@ -507,26 +511,22 @@ if st.session_state.calculo_realizado:
     plt.close(fig_b)
 
     word_buf = generar_word(
-        B, L, s_adm, p_adm_st, p_adm_ec, NF, z_max, factor_b,
-        st.session_state.df_terreno,
-        df_st, df_ec, fig_bulbo_bytes
+        B, L, s_max_mm, st.session_state.p_st, st.session_state.p_ec, NF, z_max_user, 
+        st.session_state.zi_final, st.session_state.criterio_usado, st.session_state.df_terreno,
+        st.session_state.df_st, st.session_state.df_ec, fig_bulbo_bytes
     )
     st.sidebar.download_button(
-        "📝 Descargar Informe Diseño", data=word_buf,
-        file_name=f"diseno_carga_admisible_{datetime.now().strftime('%Y%m%d_%H%M')}.docx",
+        "📝 Descargar Informe Word", data=word_buf,
+        file_name=f"presion_admisible_{datetime.now().strftime('%Y%m%d_%H%M')}.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         use_container_width=True
     )
-else:
-    st.sidebar.button("📝 Descargar Informe Diseño", disabled=True,
-                      use_container_width=True,
-                      help="Primero calcula.")
 
 # ══════════════════════════════════════════════════════════════════════════
 # ÁREA PRINCIPAL
 # ══════════════════════════════════════════════════════════════════════════
-st.title("🏗️ Presión Admisible por Asiento")
-st.markdown("**Cálculo de la presión admisible limitando la integración a la profundidad de influencia del bulbo**")
+st.title("🏗️ Cálculo Inverso: Presión Admisible (ELS)")
+st.markdown(f"**Asiento máximo objetivo del proyecto:** {s_max_mm} mm")
 st.markdown("---")
 
 if modo == "🧮 Panel de Resultados":
@@ -548,131 +548,129 @@ if modo == "🧮 Panel de Resultados":
         st.rerun()
 
     st.markdown("---")
-    st.header("2. Presión Neta Admisible")
+    st.header("2. Presión Máxima Calculada")
 
     if not st.session_state.calculo_realizado:
-        st.info("👈 Introduce el Asiento Límite y pulsa **Calcular** en el panel izquierdo.")
+        st.info("👈 Pulsa **Calcular Presión Admisible** en el panel izquierdo.")
     else:
-        # AVISO EN RESULTADOS SI HAY TRUNCAMIENTO
-        espesor_total = float(pd.to_numeric(st.session_state.df_terreno["Espesor (m)"]).sum())
-        if st.session_state.z_max_calc > espesor_total:
-            st.error(f"⛔ **CÁLCULO INSEGURO:** El bulbo requería integrar hasta **{st.session_state.z_max_calc:.2f} m**, pero se ha truncado a **{espesor_total:.2f} m** por falta de estratos. Las presiones admisibles mostradas a continuación están SOBREESTIMADAS y no son válidas.")
+        p_st = st.session_state.p_st
+        p_ec = st.session_state.p_ec
+        zi_final = st.session_state.zi_final
 
-        p_st = st.session_state.p_adm_st
-        p_ec = st.session_state.p_adm_ec
+        if p_st is None or p_ec is None:
+            st.error("🚨 **Error de convergencia:** El terreno es demasiado rígido (o la zapata enorme). Ni siquiera aplicando 5000 kPa se alcanza el asiento de diseño.")
+        else:
+            st.success(f"✅ El solver convergió. Profundidad de influencia activa ajustada a **{zi_final:.2f} m**.")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("🔵 Presión adm. Steinbrenner", f"{p_st:.1f} kPa")
+            c2.metric("🟢 Presión adm. Elástica", f"{p_ec:.1f} kPa", help=f"Integrada con dz = {st.session_state.dz_used} m")
+            
+            dif_p = abs(p_st - p_ec)
+            c3.metric("📊 Diferencia de carga", f"{dif_p:.1f} kPa")
 
-        st.success(f"✅ Para no superar un asiento de **{s_adm} mm**, la cimentación soporta las siguientes presiones netas:")
-        
-        c1, c2, c3 = st.columns(3)
-        c1.metric("🔵 p_adm (Steinbrenner)",f"{p_st:.1f} kPa")
-        c2.metric("🟢 p_adm (Ec. Elástica)", f"{p_ec:.1f} kPa")
-        dif = abs(p_st - p_ec)
-        pct = (dif / min(p_st, p_ec)) * 100
-        c3.metric("📊 Diferencia (Seguridad)", f"{dif:.1f} kPa", f"{pct:.1f}%")
+            st.markdown(f"> **Interpretación:** Para que esta cimentación de {B}x{L} m no se asiente más de {s_max_mm} mm, no deberías superar estas presiones en tu diseño estructural.")
 
-        st.markdown("---")
-        st.subheader(f"Distribución del asiento límite ({s_adm} mm) por estrato")
-        df_comp = pd.DataFrame({
-            "Capa": st.session_state.df_st["Capa"],
-            "Asiento aportado [mm]": st.session_state.df_st["Δs [mm]"].round(3)
-        })
-        st.dataframe(df_comp, use_container_width=True, hide_index=True)
-
-elif modo == "📋 Detalle Capas Escalas":
-    st.header("Detalle de Parámetros Escalados")
+elif modo == "📋 Detalle Steinbrenner":
+    st.header("📋 Detalle Método Steinbrenner")
     if not st.session_state.calculo_realizado:
         st.warning("⚠️ Calcula primero.")
+    elif st.session_state.p_st is None:
+        st.error("No hay datos para mostrar por error de convergencia.")
     else:
-        st.subheader("🔵 Método de Steinbrenner")
-        st.dataframe(st.session_state.df_st.round(4), use_container_width=True, hide_index=True)
-        
-        st.subheader("🟢 Ecuación Elástica (Ec. Elástica)")
-        st.dataframe(st.session_state.df_ec.round(4), use_container_width=True, hide_index=True)
+        st.markdown(f"Desglose tensional evaluado a **p = {st.session_state.p_st:.1f} kPa**.")
+        df_st = st.session_state.df_st
+        st.markdown("##### 📊 Asiento por estrato")
+        st.dataframe(df_st[["Capa","z Techo [m]","z Base [m]","Δs [mm]"]], use_container_width=True, hide_index=True)
 
-elif modo == "📉 Bulbo Límite":
-    st.header("Bulbo de Tensiones (Estado Límite de Servicio)")
+elif modo == "📋 Detalle Elástico":
+    st.header("📋 Detalle Método Ecuación Elástica")
     if not st.session_state.calculo_realizado:
         st.warning("⚠️ Calcula primero.")
+    elif st.session_state.p_ec is None:
+        st.error("No hay datos para mostrar por error de convergencia.")
     else:
-        z_max = st.session_state.z_max_calc
-        factor_b = st.session_state.factor_bulbo
-        p_plot = min(st.session_state.p_adm_st, st.session_state.p_adm_ec)
+        st.markdown(f"Desglose tensional evaluado a **p = {st.session_state.p_ec:.1f} kPa**.")
+        df_ec = st.session_state.df_ec
+        st.markdown("##### ⚡ Deformación unitaria media y asiento")
+        st.dataframe(df_ec[["Capa","h_ef [m]","Sub-capas","Δεz med [-]","Δs [mm]"]], use_container_width=True, hide_index=True)
+
+elif modo == "📉 Bulbo de Presiones":
+    st.header("Bulbo de Presiones")
+    if not st.session_state.calculo_realizado:
+        st.warning("⚠️ Calcula primero para fijar la presión.")
+    elif st.session_state.p_ec is None:
+        st.error("No hay datos para graficar por error de convergencia.")
+    else:
+        p_ref = st.session_state.p_ec
+        st.markdown(f"Bulbo trazado para la presión límite del método numérico: **p = {p_ref:.1f} kPa**")
         
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            z_gr = st.slider("Profundidad de gráfica [m]:", 1.0, z_max * 2.5, z_max * 1.5, 0.5)
-            st.metric("p_admisible graficada", f"{p_plot:.1f} kPa")
-            st.info(f"Profundidad de integración estática:\n **{factor_b}B = {z_max:.2f} m**")
-        with col2:
-            z_vals = np.linspace(0.05, z_gr, 200)
-            sz_v,sx_v,sy_v,sv0_v = [],[],[],[]
-            for z in z_vals:
-                sz,sx,sy = holl_centro(p_plot, B, L, z)
-                sv = sigma_v0(z, st.session_state.df_terreno, NF)
-                sz_v.append(sz); sx_v.append(sx); sy_v.append(sy)
-                sv0_v.append(sv * 0.2)
+        z_gr = st.slider("Zoom profundidad [m]:", 1.0, espesor_total, min(espesor_total, 15.0), 0.5)
+        
+        z_vals = np.linspace(0.05, z_gr, 200)
+        sz_v, sx_v, sy_v, sv0_v, umb20_v = [], [], [], [], []
+        for z in z_vals:
+            sz, sx, sy = holl_centro(p_ref, B, L, z)
+            sv = sigma_v0(z, st.session_state.df_terreno, NF)
+            sz_v.append(sz); sx_v.append(sx); sy_v.append(sy)
+            sv0_v.append(sv); umb20_v.append(0.20*sv)
 
-            fig, ax = plt.subplots(figsize=(9, 7))
-            ax.plot(sz_v,   z_vals, label=r"Vertical $\Delta\sigma_z$",           color='red',         lw=2)
-            ax.plot(sx_v,   z_vals, label=r"Horiz. Trans. $\Delta\sigma_x$",      color='blue',        ls='--')
-            ax.plot(sy_v,   z_vals, label=r"Horiz. Long. $\Delta\sigma_y$",       color='purple',      ls='-.')
-            ax.plot(sv0_v,  z_vals, label=r"$0.20\,\sigma'_{v0}$ (Ref EC7)",      color='green',       lw=1.5, ls=':')
-            
-            ax.axhline(y=z_max, color='orange', ls='--', lw=2, label=f'Base integración ({factor_b}B) = {z_max:.2f} m')
-            
-            if NF < z_gr:
-                ax.axhline(y=NF, color='deepskyblue', ls='-.', lw=1.2, label=f'NF = {NF:.1f} m')
-                
-            ax.set_ylim(z_gr, 0); ax.set_xlim(left=0)
-            ax.set_xlabel("Tensión (kPa)", fontsize=11)
-            ax.set_ylabel("Profundidad z (m)", fontsize=11)
-            ax.legend(loc='lower right', fontsize=9)
-            ax.grid(True, linestyle=':', alpha=0.5)
-            ax.spines[['top','right']].set_visible(False)
-            st.pyplot(fig); plt.close(fig)
+        fig, ax = plt.subplots(figsize=(9, 7))
+        ax.plot(sz_v,   z_vals, label=r"Vertical $\Delta\sigma_z$",           color='red',         lw=2)
+        ax.plot(sx_v,   z_vals, label=r"Horiz. Trans. $\Delta\sigma_x$",      color='blue',        ls='--')
+        ax.plot(sy_v,   z_vals, label=r"Horiz. Long. $\Delta\sigma_y$",       color='purple',      ls='-.')
+        ax.plot(sv0_v,  z_vals, label=r"$\sigma'_{v0}$ (tensión efect.)",     color='saddlebrown', ls=':', lw=1.5)
+        ax.plot(umb20_v,z_vals, label=r"$0.20\,\sigma'_{v0}$ (criterio EC7)", color='green',       lw=2)
+        
+        zi = st.session_state.zi_final
+        if zi <= z_gr:
+            ax.axhline(y=zi, color='orange', ls='--', lw=1.5, label=f'z_i Limitante = {zi:.2f} m')
+        
+        ax.set_ylim(z_gr, 0); ax.set_xlim(left=0)
+        ax.set_xlabel("Tensión (kPa)", fontsize=11)
+        ax.set_ylabel("Profundidad z (m)", fontsize=11)
+        ax.legend(loc='lower right', fontsize=9)
+        ax.grid(True, linestyle=':', alpha=0.5)
+        ax.spines[['top','right']].set_visible(False)
+        st.pyplot(fig); plt.close(fig)
 
-elif modo == "📖 Fundamento Teórico y Algoritmo":
-    st.header("Fundamento Teórico y Algoritmo de Diseño")
-
-    st.subheader("1. Algoritmo de Cálculo Inverso (Escalado Lineal Directo)")
-    st.markdown(
-        "Dado que se asume un comportamiento **elástico lineal** del terreno y se fija la "
-        "profundidad de integración a una geometría constante (ej. 1.5B o 2.0B), el asiento resultante es "
-        "directamente proporcional a la presión aplicada. El algoritmo de diseño aprovecha esta linealidad:"
-    )
-    st.markdown("1. Se aplica una presión ficticia de referencia internamente ($p_{ref} = 100$ kPa).")
-    st.markdown("2. Se calcula el asiento de referencia ($s_{ref}$) generado por esa presión en la profundidad de bulbo estipulada.")
-    st.markdown("3. Se obtiene la presión neta admisible ($p_{adm}$) aplicando una proporción exacta con el asiento límite fijado por el usuario ($s_{adm}$):")
-    st.latex(r"p_{adm} = p_{ref} \cdot \frac{s_{adm}}{s_{ref}}")
-
-    st.markdown("---")
+elif modo == "📖 Fundamento Teórico":
+    st.header("Fundamento Teórico")
     
+    st.subheader("1. Búsqueda de la Presión Admisible (Problema Inverso)")
+    st.markdown(
+        "El programa no calcula el asiento a partir de una carga, sino al revés. "
+        "Define una función matemática basada en la diferencia entre el asiento calculado y tu objetivo: "
+        r"$f(p) = s_{calculado}(p) - s_{max}$"
+    )
+    st.markdown(
+        "Utiliza un algoritmo de búsqueda de raíces (`scipy.optimize.brentq`) que prueba iterativamente "
+        "distintas presiones $p$ hasta encontrar el valor exacto donde $f(p) = 0$. En cada intento, "
+        "el tamaño del bulbo de presiones se recalcula dinámicamente según el criterio seleccionado."
+    )
+    
+    st.markdown("---")
+    st.subheader("2. Modelos de Deformación (Problema Directo)")
     col_a, col_b = st.columns(2)
 
     with col_a:
-        st.subheader("🔵 Método 1 — Steinbrenner")
-        st.markdown("Integración analítica del campo de asientos usando los factores geométricos φ₁ y φ₂:")
+        st.markdown("**🔵 Método 1 — Steinbrenner**")
+        st.markdown("Integración analítica usando los factores de influencia $\phi_1$ y $\phi_2$:")
         st.latex(r"s(z) = \frac{p \cdot B}{E}\left[(1-\nu^2)\phi_1 - (1-\nu-2\nu^2)\phi_2\right]")
         st.latex(r"\phi_1 = \frac{1}{\pi}\left[\ln\frac{\sqrt{1+m^2+n^2}+n}{\sqrt{1+m^2}} + n\ln\frac{\sqrt{1+m^2+n^2}+1}{\sqrt{n^2+m^2}}\right]")
         st.latex(r"\phi_2 = \frac{m}{\pi}\arctan\frac{n}{m\sqrt{1+m^2+n^2}}")
-        st.markdown(r"Con $n = L/B$ y $m = z/B_{cuadrante}$. El asiento elástico de cada estrato se evalúa como la diferencia entre la base y el techo:")
-        st.latex(r"\Delta s_i = s(z_{techo}) - s(z_{base})")
+        st.markdown("El asiento de cada estrato se obtiene restando el valor en su base al de su techo.")
 
     with col_b:
-        st.subheader("🟢 Método 2 — Ecuación Elástica")
-        st.markdown("Integración numérica explícita de la deformación unitaria vertical en cada estrato:")
+        st.markdown("**🟢 Método 2 — Ecuación Elástica**")
+        st.markdown("Integración numérica de la deformación unitaria vertical en cada subcapa:")
         st.latex(r"s = \sum_{i=1}^{n}\left[\frac{h}{E}\left(\Delta\sigma_z - \nu(\Delta\sigma_x+\Delta\sigma_y)\right)\right]_i")
-        st.markdown(r"Las tensiones se evalúan en el **punto medio** de cada subcapa ($z_{mid}$):")
-        st.latex(r"\Delta\varepsilon_z = \frac{\Delta\sigma_z - \nu(\Delta\sigma_x+\Delta\sigma_y)}{E}")
-        st.latex(r"\Delta s_i = \Delta\varepsilon_z \cdot dz")
-
+        st.markdown(r"Las tensiones $\Delta\sigma$ se calculan en el centro geométrico de la subcapa con la solución de Holl, superponiendo 4 cuadrantes.")
+    
     st.markdown("---")
-    st.subheader("🔁 Tensiones de Holl — compartidas por ambos métodos")
+    st.subheader("3. Límite Activo de Profundidad (Bulbo)")
     st.markdown(
-        r"Ambas formulaciones usan las tensiones de Holl bajo la **esquina** de una carga rectangular, "
-        r"aplicando superposición elástica ($\times 4$) con sub-cuadrantes de $B/2 \times L/2$ para obtener el valor bajo el **centro** geométrico de la zapata:"
+        "Para la integración del asiento, el programa evalúa distintos criterios y adopta el más restrictivo (el menor valor):\n"
+        "1. **Criterio Seleccionado:** Puede ser el **EC7 Tensional** ($\Delta\sigma_z \leq 0.20\,\sigma'_{v0}$) o un límite geométrico explícito como **2B** o **3B**.\n"
+        "2. **Límite Físico:** El espesor total de la estratigrafía introducida.\n"
+        "3. **Límite Manual:** El valor forzado por el usuario como 'Profundidad de bulbo manual'."
     )
-    st.latex(r"\sigma_z = \frac{p}{2\pi}\left[\arctan\frac{BL}{zR_3} + BL\left(\frac{1}{R_1^2}+\frac{1}{R_2^2}\right)\frac{z}{R_3}\right]")
-    st.latex(r"\sigma_x = \frac{p}{2\pi}\left[\arctan\frac{BL}{zR_3} - \frac{BLz}{R_1^2 R_3}\right]")
-    st.latex(r"\sigma_y = \frac{p}{2\pi}\left[\arctan\frac{BL}{zR_3} - \frac{BLz}{R_2^2 R_3}\right]")
-    st.latex(r"R_1=\sqrt{L^2+z^2}\quad R_2=\sqrt{B^2+z^2}\quad R_3=\sqrt{L^2+B^2+z^2}")
