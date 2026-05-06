@@ -399,7 +399,7 @@ if 'df_terreno' not in st.session_state:
 # CONFIGURACIÓN UI
 # ══════════════════════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="Cálculo de Presión Admisible (ELS)",
+    page_title="Cálculo de Presión Admisible (ELS) con limitación de asiento",
     layout="wide", page_icon="🏗️"
 )
 
@@ -525,7 +525,7 @@ if st.session_state.calculo_realizado and st.session_state.p_ec is not None:
 # ══════════════════════════════════════════════════════════════════════════
 # ÁREA PRINCIPAL
 # ══════════════════════════════════════════════════════════════════════════
-st.title("🏗️ Cálculo Inverso: Presión Admisible (ELS)")
+st.title("🏗️ Cálculo Presión Admisible con limitación de asiento (ELS)")
 st.markdown(f"**Asiento máximo objetivo del proyecto:** {s_max_mm} mm")
 st.markdown("---")
 
