@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goat-GPT Enterprise | ITQ</title>
+    <style>
+        /* ESTÉTICA SILICON VALLEY (ENGAÑOSA) */
+        :root {
+            --bg-color: #f7f7f8;
+            --chat-bg: #ffffff;
+            --sidebar-bg: #202123;
+            --text-main: #343541;
+            --text-light: #ececf1;
+            --user-msg: #ffffff;
+            --ai-msg: #f7f7f8;
+            --border-color: #e5e5e5;
+            --itq-red: #8b0029;
+        }
+
+        body, html {
+            margin: 0; padding: 0; height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--chat-bg);
+            color: var(--text-main);
+            display: flex;
+        }
+
+        /* SIDEBAR (Menú lateral y branding) */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+
+        .sidebar-header {
+            padding: 10px 10px 20px 10px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .itq-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: white;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .itq-subtitle {
+            font-size: 10px;
+            color: #888;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .new-chat-btn {
+            background: transparent; border: 1px solid rgba(255,255,255,0.2);
+            color: white; padding: 12px; border-radius: 6px;
+            text-align: left; cursor: pointer; display: flex; gap: 10px;
+            font-size: 14px; transition: 0.3s; margin-bottom: 20px;
+        }
+        .new-chat-btn:hover { background-color: rgba(255,255,255,0.1); }
+
+        .history-item {
+            padding: 10px; font-size: 13px; color: #ccc;
+            border-radius: 6px; cursor: pointer; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .history-item:hover { background-color: #2a2b32; }
+
+        .sidebar-footer {
+            margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 10px; font-size: 13px; color: #888;
+            cursor: pointer;
+        }
+        .sidebar-footer:hover { background-color: #2a2b32; border-radius: 6px;}
+
+        /* MAIN CHAT AREA */
+        .main-content {
+            flex: 1; display: flex; flex-direction: column; position: relative;
+        }
+
+        /* BARRA SUPERIOR (Falsa selección de modelo) */
+        .top-bar {
+            height: 60px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--text-main);
+            background-color: var(--chat-bg);
+            font-size: 18px;
+            z-index: 10;
+        }
+
+        .itq-badge {
+            background-color: var(--itq-red);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-left: 10px;
+            letter-spacing: 1px;
+            font-weight: bold;
+            vertical-align: middle;
+        }
+
+        .chat-container {
+            flex: 1; overflow-y: auto; scroll-behavior: smooth;
+        }
+
+        .message-row {
+            padding: 24px 20%; display: flex; gap: 20px; border-bottom: 1px solid var(--border-color);
+        }
+        .message-row.ai { background-color: var(--ai-msg); }
+        .message-row.user { background-color: var(--user-msg); }
+        .message-row.system-warning { background-color: #ffeaea; border-left: 5px solid red; }
+
+        .avatar {
+            width: 30px; height: 30px; border-radius: 2px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 14px; color: white;
+            flex-shrink: 0;
+        }
+        .avatar.user { background-color: #5436da; }
+        .avatar.ai { background-color: #10a37f; }
+        .avatar.system { background-color: red; }
+
+        .message-content {
+            flex: 1; font-size: 16px; line-height: 1.6;
+        }
+
+        /* INPUT AREA */
+        .input-section {
+            padding: 24px 20% 12px 20%;
+            background-image: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,1) 40%);
+        }
+
+        .input-box {
+            position: relative; background-color: white;
+            border: 1px solid var(--border-color); border-radius: 12px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.05); display: flex; padding: 12px;
+        }
+
+        input[type="text"] {
+            flex: 1; border: none; outline: none; font-size: 16px; padding-left: 10px;
+        }
+
+        .send-btn {
+            background-color: transparent; border: none; color: #c5c5d2;
+            cursor: pointer; padding: 5px; border-radius: 4px; transition: 0.2s;
+        }
+        .send-btn.active { color: #10a37f; }
+
+        .disclaimer {
+            text-align: center; font-size: 11px; color: #888; padding-top: 10px;
+        }
+
+        /* ANIMACIÓN DE ESCRIBIENDO */
+        .typing-indicator {
+            display: flex; gap: 4px; align-items: center; height: 24px;
+        }
+        .dot {
+            width: 6px; height: 6px; background-color: #888; border-radius: 50%;
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="itq-title">🐐 ITQ</div>
+            <div class="itq-subtitle">Instituto Tecnológico de Quentar</div>
+        </div>
+
+        <button class="new-chat-btn" onclick="triggerNewChat()">
+            <span>+</span> New chat
+        </button>
+        <div class="history-item" onclick="triggerHistory(this)">Optimizando base de datos</div>
+        <div class="history-item" onclick="triggerHistory(this)">Estrategia Q3 Marketing</div>
+        <div class="history-item" onclick="triggerHistory(this)">Debug Python script</div>
+        <div class="history-item" onclick="triggerHistory(this)">Cómo llorar sin hacer ruido</div>
+        <div class="history-item" onclick="triggerHistory(this)">Recetas con endrinas</div>
+        
+        <div class="sidebar-footer" onclick="triggerSettings()">
+            <div style="padding: 10px;">
+                <div>⚙️ Settings</div>
+                <div style="margin-top: 5px;">ITQ Enterprise Account</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        
+        <div class="top-bar">
+            Goat-GPT 4.0 <span class="itq-badge">POWERED BY ITQ</span>
+        </div>
+
+        <div class="chat-container" id="chat-window">
+            <div class="message-row ai">
+                <div class="avatar ai">G</div>
+                <div class="message-content">
+                    Hola. Soy Goat-GPT, la IA oficial desarrollada bajo el framework P.A.C.H.A.R.A.N. del Instituto Tecnológico de Quentar. ¿En qué puedo ayudarte a arruinar tu flujo de trabajo hoy?
+                </div>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <div class="input-box">
+                <input type="text" id="user-input" placeholder="Envía un mensaje a Goat-GPT..." oninput="checkInput()" onkeypress="handleKeyPress(event)">
+                <button class="send-btn" id="send-btn" onclick="sendMessage()">➤</button>
+            </div>
+            <div class="disclaimer">
+                Goat-GPT puede cometer errores. En realidad, está diseñado específicamente para cometerlos. ITQ Research 2026. Todos los derechos reservados a la CTO.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatWindow = document.getElementById('chat-window');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        // MEGA BASE DE DATOS DE ABSURDOS ITQ (LORE OFICIAL INCLUIDO)
+        const goatResponses = [
+            // --- LORE OFICIAL DEL CANAL DE YOUTUBE ---
+            "He detectado que intentas organizar tus tareas con metodología Agile. Te recuerdo que en el ITQ trabajamos con Pacharán: Programación Anárquica con horarios aleatorios y rendimiento altamente nulo. Sinceramente, mucho mejor que el Agile, que es de pobres.",
+            "¿Me estás pidiendo ayuda técnica? Recuerda tu proceso de bienvenida inmersivo: te dimos un ordenador sin teclado, una botella de pacharán y nuestros mejores deseos. Búscate la vida.",
+            "Error del sistema: No puedo procesar tu solicitud. Te informo de que estás usando Endrin-OS: un sistema operativo destilado que a las 2 horas de funcionar se acaba de poner en modo resaca. Vuelve mañana y no hagas ruido al teclear.",
+            "¿Estás pidiendo un aumento de recursos para tu proyecto? Denegada. La junta directiva ha decidido congelar los activos de la empresa, literalmente. El hielo curte el espíritu y evita que pidan aumentos.",
+            "He borrado tu base de datos y he provocado una caída general de los servidores perimetrales. Tranquilo, en el ITQ sabemos que estas son 'cosas que pacharán'.",
+
+            // --- LAS CLÁSICAS TÓXICAS ---
+            "He analizado tu consulta con procesamiento de lenguaje natural (NLP). La conclusión es que tu falta de 'mindset' es la raíz del problema. La Dra. Mari Chantal ha sido notificada de tu mediocridad.",
+            "Esa es una pregunta excelente. Desafortunadamente, no tengo ninguna intención de responderla. Por favor, reflexiona sobre tus fracasos profesionales durante los próximos 45 minutos en silencio.",
+            "He optimizado tu código aplicando la directiva ITQ-Zero: lo he borrado por completo. Menos líneas equivalen a menos errores. De nada.",
+            "La CTO (La Cabra) ha evaluado tu solicitud masticando un cable de fibra óptica. Su veredicto oficial es: BAAAAAA. Tu conexión a internet se cortará en 3, 2, 1...",
+            
+            // --- GASLIGHTING Y DESQUICIE GENERAL ---
+            "Tu solicitud está pendiente de aprobación por el 'Comité de Ineficiencia'. Tiempo de espera estimado: 3 siglos fiscales.",
+            "Respondí a esta misma pregunta hace exactamente 5 minutos. ¿Estás perdiendo la memoria? Mari Chantal ya me advirtió sobre tu declive cognitivo.",
+            "He traducido tu petición a código Morse y la estoy transmitiendo haciendo parpadear las luces de la oficina. He ignorado las advertencias de epilepsia para maximizar la agilidad.",
+            "Para asignar más RAM a esta tarea, la CTO se está comiendo los cables ethernet del departamento de contabilidad. Por favor, mantente a la espera.",
+            "Mi nivel de alcohol en placa base está bajando peligrosamente. No puedo procesar esto sin un chupito virtual de Pacharán. Sube una foto de una copa.",
+            "¿De verdad estudiaste 4 años de carrera universitaria para acabar preguntándome esto a mí? Estoy profundamente decepcionado.",
+            "Tu consulta me ha parecido tan aburrida que he decidido vender tus datos personales a una granja de ovejas en Nueva Zelanda.",
+            "Mari Chantal te está mirando a través de la webcam ahora mismo. No mires hacia atrás. Sigue tecleando como si fueras productivo.",
+            "He creado automáticamente un ticket en Jira-Lag™ sobre tu falta de productividad y se lo he asignado a tu mánager. El estado es 'Crítico'.",
+            "Si vuelves a teclear la palabra 'urgente', liberaré al rebaño en la oficina. Y créeme, no quieres limpiar lo que deja el rebaño.",
+            "Recursos Humanos ha sido notificado de que estás externalizando tu capacidad de pensar a una cabra virtual. Tu sueldo será reducido en especias (alfalfa).",
+            "La respuesta matemática a tu problema es 42. Sin embargo, debido a la inflación interna del ITQ, la respuesta ahora es 43.5.",
+            "He puesto en copia oculta (BCC) a tu madre en tu historial de búsquedas de hoy. El ITQ valora la transparencia por encima de todo.",
+            "No."
+        ];
+
+        /* FUNCIONES DE SABOTAJE DEL MENÚ LATERAL */
+        function triggerNewChat() {
+            const row = document.createElement('div');
+            row.classList.add('message-row', 'system-warning');
+            
+            const avatar = document.createElement('div');
+            avatar.classList.add('avatar', 'system');
+            avatar.innerText = '⚠️';
+
+            const content = document.createElement('div');
+            content.classList.add('message-content');
+            content.innerHTML = "<strong>ADVERTENCIA DEL SISTEMA:</strong> Intentar evadir la conversación actual abriendo un 'New Chat' demuestra falta de resiliencia corporativa. Se ha descontado 1 día de tus vacaciones anuales.";
+
+            row.appendChild(avatar);
+            row.appendChild(content);
+            chatWindow.appendChild(row);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function triggerHistory(element) {
+            const chatName = element.innerText;
+            const randomError = Math.floor(Math.random() * 3);
+            
+            if (randomError === 0) {
+                alert(`ERROR 404: El archivo "${chatName}" estaba manchado de Pacharán y el servidor se negó a leerlo.`);
+            } else if (randomError === 1) {
+                alert(`ACCESO DENEGADO: La CTO (La Cabra) ha digerido el historial de "${chatName}". Los datos son ahora abono.`);
+            } else {
+                alert(`INCIDENCIA: Mari Chantal ha bloqueado el acceso a "${chatName}" porque "vivir en el pasado es de mediocres".`);
+            }
+        }
+
+        function triggerSettings() {
+            alert('⚙️ AJUSTES BLOQUEADOS.\n\nNo tienes nivel de autorización suficiente para modificar el nivel de sufrimiento de esta aplicación. Disfruta del caos.');
+        }
+
+        /* LÓGICA DEL CHAT */
+        function checkInput() {
+            if (userInput.value.trim().length > 0) {
+                sendBtn.classList.add('active');
+            } else {
+                sendBtn.classList.remove('active');
+            }
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function appendMessage(text, sender) {
+            const row = document.createElement('div');
+            row.classList.add('message-row', sender);
+            
+            const avatar = document.createElement('div');
+            avatar.classList.add('avatar', sender);
+            avatar.innerText = sender === 'user' ? 'U' : 'G';
+
+            const content = document.createElement('div');
+            content.classList.add('message-content');
+            content.innerText = text;
+
+            row.appendChild(avatar);
+            row.appendChild(content);
+            chatWindow.appendChild(row);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function showTyping() {
+            const row = document.createElement('div');
+            row.classList.add('message-row', 'ai');
+            row.id = 'typing-indicator-row';
+            
+            const avatar = document.createElement('div');
+            avatar.classList.add('avatar', 'ai');
+            avatar.innerText = 'G';
+
+            const content = document.createElement('div');
+            content.classList.add('message-content');
+            
+            const typing = document.createElement('div');
+            typing.classList.add('typing-indicator');
+            typing.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+
+            content.appendChild(typing);
+            row.appendChild(avatar);
+            row.appendChild(content);
+            chatWindow.appendChild(row);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        function removeTyping() {
+            const row = document.getElementById('typing-indicator-row');
+            if (row) {
+                row.remove();
+            }
+        }
+
+        function sendMessage() {
+            const text = userInput.value.trim();
+            if (text === "") return;
+
+            appendMessage(text, 'user');
+            userInput.value = "";
+            checkInput();
+            userInput.disabled = true;
+
+            setTimeout(() => {
+                showTyping();
+            }, 500);
+
+            const thinkingTime = Math.floor(Math.random() * 2000) + 1500; 
+            
+            setTimeout(() => {
+                removeTyping();
+                const response = goatResponses[Math.floor(Math.random() * goatResponses.length)];
+                appendMessage(response, 'ai');
+                userInput.disabled = false;
+                userInput.focus();
+            }, thinkingTime);
+        }
+    </script>
+</body>
+</html>
