@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ITQ - Instituto Tecnológico de Quentar Cofradía Tecnologica</title>
+    <style>
+        /* Base y Reseteo - MODO OSCURO TOTAL */
+        :root {
+            --pacharan-red: #8b0029;
+            --bg-black: #000000;
+            --bg-darker: #0a0a0a;
+            --bg-card: #111111;
+            --text-light: #f0f0f0;
+            --text-muted: #888888;
+            --border-color: #222222;
+        }
+
+        * { box-sizing: border-box; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; color: var(--text-light); line-height: 1.8; background-color: var(--bg-black); }
+        h1, h2, h3, h4 { font-weight: 300; letter-spacing: 1px; margin: 0; }
+        
+        /* Cabecera */
+        header { display: flex; justify-content: space-between; align-items: center; padding: 30px 60px; position: sticky; top: 0; background: rgba(0, 0, 0, 0.95); z-index: 1000; border-bottom: 1px solid var(--border-color); }
+        .logo { font-size: 22px; font-weight: 700; letter-spacing: 2px; color: #fff; text-transform: uppercase; text-decoration: none;}
+        .logo span { color: var(--pacharan-red); font-weight: 300; }
+        nav { display: flex; gap: 35px; flex-wrap: wrap; }
+        nav a { text-decoration: none; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; transition: color 0.3s; }
+        nav a:hover { color: var(--pacharan-red); }
+
+        /* Hero / Slogan */
+        .hero { display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 70vh; text-align: center; padding: 0 20px; background: radial-gradient(circle at center, #1a050d 0%, #000000 70%); border-bottom: 1px solid var(--border-color); }
+        .hero h1 { font-size: 4rem; color: #fff; margin-bottom: 20px; font-weight: 200; text-shadow: 0px 4px 10px rgba(139, 0, 41, 0.3); }
+        .hero p { font-size: 1.2rem; color: var(--text-muted); max-width: 800px; margin-bottom: 40px; font-weight: 300; }
+        .btn { display: inline-block; padding: 15px 40px; border: 1px solid var(--text-muted); color: var(--text-light); text-decoration: none; text-transform: uppercase; font-size: 11px; letter-spacing: 2px; transition: all 0.3s ease; background: transparent; cursor: pointer; }
+        .btn:hover { background: var(--pacharan-red); color: #fff; border-color: var(--pacharan-red); }
+
+        /* Secciones Generales */
+        .section { padding: 100px 60px; text-align: center; border-bottom: 1px solid var(--border-color); background-color: var(--bg-black); }
+        .section-title { font-size: 1.2rem; text-transform: uppercase; letter-spacing: 4px; color: var(--text-muted); margin-bottom: 50px; }
+        
+        /* Grids para contenido */
+        .grid-2 { display: flex; gap: 60px; max-width: 1000px; margin: 0 auto; text-align: justify; flex-wrap: wrap; align-items: flex-start; }
+        .col { flex: 1; min-width: 300px; }
+        .col p { color: var(--text-muted); font-size: 1rem; margin-bottom: 25px; }
+        .divider { width: 30px; height: 1px; background-color: var(--pacharan-red); margin: 50px auto; }
+
+        /* Tarjetas de Soluciones */
+        .grid-3 { display: flex; gap: 40px; max-width: 1200px; margin: 0 auto; flex-wrap: wrap; }
+        .card { flex: 1; min-width: 300px; padding: 40px; background: var(--bg-card); border-top: 3px solid var(--pacharan-red); transition: transform 0.3s; text-align: left; }
+        .card:hover { transform: translateY(-10px); box-shadow: 0 10px 30px rgba(139, 0, 41, 0.1); }
+        .card h3 { font-size: 1.5rem; margin-bottom: 20px; color: #fff; }
+        .card p { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 30px; }
+        .card-link { color: var(--pacharan-red); text-decoration: none; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; cursor: pointer; }
+        .card-link:hover { color: #fff; }
+
+        /* Sección Fundadora Específica */
+        .founder-img { width: 100%; max-width: 400px; border-radius: 10px; border: 2px solid var(--border-color); box-shadow: 0 10px 30px rgba(139, 0, 41, 0.2); margin-bottom: 20px;}
+        .cv-list { list-style-type: none; padding: 0; color: var(--text-muted); text-align: left; margin-bottom: 30px; font-size: 0.95rem;}
+        .cv-list li { margin-bottom: 10px; position: relative; padding-left: 20px;}
+        .cv-list li::before { content: '→'; color: var(--pacharan-red); position: absolute; left: 0;}
+        .cv-list h4 { color: #fff; margin-top: 20px; margin-bottom: 10px; font-weight: 400; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px;}
+
+        /* Footer */
+        footer { padding: 40px 60px; background: var(--bg-darker); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        footer a { color: var(--pacharan-red); text-decoration: none; margin-left: 20px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="#" class="logo">ITQ <span>Quentar</span></a>
+        <nav>
+            <a href="#perspectiva">Perspectiva</a>
+            <a href="#fundadora">La Fundadora</a>
+            <a href="#carreras">Carreras</a>
+            <a href="#tecnologia">Tecnología</a>
+            <a href="#soluciones">Soluciones</a>
+            <a href="#contacto">Contacto</a>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <h1>El Caos es nuestro Colega™</h1>
+        <p>Sinergias disruptivas, liderazgo ágil y desarrollo de software impulsado por la fermentación de endrinas. Bienvenido al abismo de la productividad corporativa.</p>
+        <a href="#soluciones" class="btn">Explorar el Abismo</a>
+    </section>
+
+    <section id="perspectiva" class="section">
+        <h2 class="section-title">– Perspectiva –</h2>
+        <div class="grid-2">
+            <div class="col">
+                <p>El mundo ha estado en modo de generación masiva de datos durante las últimas décadas. ¿Cómo darle sentido a esta información cuando no hay suficientes ojos para examinarla? En el Instituto Tecnológico de Quentar reconocemos que la mejor solución a la sobreinformación es, simplemente, ignorarla e introducir caos sistémico.</p>
+                <p>Nuestra Metodología P.A.C.H.A.R.A.N. garantiza que ningún proceso se ejecute de forma predecible o eficiente.</p>
+            </div>
+            <div class="col">
+                <p>Hemos desarrollado algoritmos caprinos para ocultar patrones que, de otro modo, serían obvios. Los conocimientos extraídos se traducen a balidos y se encriptan utilizando metodologías fundamentadas en el consumo de Pacharán El Endrino.</p>
+                <p>Nuestro objetivo es redefinir el concepto de "innovación inútil" y el de "programación parda" (para liarla).</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="fundadora" class="section" style="background-color: var(--bg-darker);">
+        <h2 class="section-title">– Liderazgo Ágil: La Fundadora –</h2>
+        <div class="grid-2">
+            <div class="col" style="text-align: center;">
+                <img src="fundadora.jpg" alt="Dra. Mari Chantal, CEO ITQ" class="founder-img">
+                <p style="color: #fff; font-size: 1.2rem; font-weight: 300; margin-bottom: 5px;">Dra. Mari Chantal</p>
+                <p style="color: var(--pacharan-red); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;">Chief Visionary Dictator & Arquitecta del Caos</p>
+            </div>
+            <div class="col">
+                <p style="color: #fff; font-size: 1rem; margin-bottom: 15px;"><strong>Perfil Profesional:</strong></p>
+                <p>Visionaria disruptiva especializada en transformar soluciones viables en problemas informáticos insuperables. Más de 30 años de experiencia liderando equipos hacia el colapso absoluto y redefiniendo el concepto de "latencia".</p>
+
+                <h4>Experiencia Laboral</h4>
+                <ul class="cv-list">
+                    <li><strong>2020 - Presente | Instituto Tecnológico de Quentar (ITQ):</strong> Creadora intelectual del framework P.A.C.H.A.R.A.N. y diseño del "Cloud Caprino" distribuido. Récord interno: 45 despidos en una mañana.</li>
+                    <li><strong>2012 - 2020 | Multinacional (censurado):</strong> Senior Backend Saboteur. Responsable de inyectar latencia artificial. Despedida tras optimizar un proceso por accidente (una calumnia).</li>
+                </ul>
+
+                <h4>Educación Cuestionable</h4>
+                <ul class="cv-list">
+                    <li><strong>Varios vídeos de Youtube de cosas de ordenadores.</strong></li>
+                    <li><strong>Curso de cortadora de Jamón.</strong></li>
+                    <li><strong>Grado en Psicología Perruna.</strong></li>
+                    <li><strong>Doctorado en Ingeniería del Caos y Datos Deficientes.</strong> <a href="#" style="color: var(--pacharan-red);" onclick="alert('Verificación de título denegada por orden judicial.')">Ver Tesis</a></li>
+                    <li><strong>Máster en Psicología Inversa e Intoxicación Corporativa.</strong></li>
+                    <li><strong>Máster en Metodología P.A.C.H.A.R.A.N. aplicada a grandes corporaciones.</strong></li>
+
+                </ul>
+
+                <h4>Habilidades</h4>
+                <ul class="cv-list">
+                    <li>Programación en ZX 81 y ZX Spectrum avanzado.</li>
+                    <li>Tirania ágil (T-Agile), microgestión paralizante, tolerancia 0% a la proactividad.</li>
+                    <li>Traducción simultánea Balido-SQL, HTML avanzado (textos en rojo fuego).</li>
+                    <li>Habilidad para liarla parda y cargarle el mochuelo a los demás </li>
+                    <li>Mala leche como para empaquetar en porciones de a kilo.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section id="carreras" class="section">
+        <h2 class="section-title">– Carreras (Únete al Rebaño) –</h2>
+        <h3 style="font-size: 2.5rem; margin-bottom: 20px;">Buscamos Becarios Perpetuos</h3>
+        <p style="max-width: 800px; margin: 0 auto 40px auto; color: var(--text-muted);">En el ITQ no creemos en las "etapas profesionales". Creemos en la perpetuidad. Aquí no eres un recurso humano de paso; eres una constante universal, como el olor a anís en la oficina.</p>
+        
+        <div class="grid-3">
+            <div class="card" style="border-top: none; border-left: 3px solid var(--pacharan-red);">
+                <h3>Requisitos</h3>
+                <p>- Aguantar 4 años sin preguntar por el contrato.<br>- C++, Python y pastoreo avanzado.<br>- Extrema aguante a los balidos de madrugada.<br>- Tolerancia a las bebidas espirituosas de alta graduación.</p>
+            </div>
+            <div class="card" style="border-top: none; border-left: 3px solid var(--pacharan-red);">
+                <h3>El Protocolo</h3>
+                <p>La jerarquía es binaria: Existe la Cabra (1) y existes tú (0). Todo el código se escribe en ayunas y se despliega los viernes a las 23:59.</p>
+            </div>
+            <div class="card" style="border-top: none; border-left: 3px solid var(--pacharan-red);">
+                <h3>Beneficios</h3>
+                <p>Bonus pack formado por bolsa de pienso de perro, conjunto de baño provocativo, bolsa de patatas fritas y acceso al Fondo de Pacharán de Emergencia.</p>
+            </div>
+        </div>
+        <br><br>
+        <button class="btn" onclick="alert('Error de sintaxis: Tu currículum ha sido masticado por el Lead Developer (La Cabra).')">Enviar Currículum</button>
+    </section>
+
+    <section id="tecnologia" class="section">
+        <h2 class="section-title">– Tecnología & I+D+i –</h2>
+        <div class="grid-2">
+            <div class="col" style="text-align: center; background: var(--bg-card); padding: 30px; border-radius: 8px; border-bottom: 3px solid var(--pacharan-red);">
+                <h3 style="color: #fff; font-size: 1.8rem; margin-bottom: 15px;">Framework P.A.C.H.A.R.A.N.</h3>
+                <p>Programación Anárquica Con Horarios Aleatorios y Rendimiento Altamente Nulo. Si un código funciona a la primera, no lo has hecho bien, carece de alma.</p>
+                <button class="btn" style="padding: 10px 20px; font-size: 10px;" onclick="alert('Documentación no encontrada. El desarrollador se ofendió y la borró.')">Ver Documentación</button>
+            </div>
+
+            <div class="col" style="text-align: center; background: var(--bg-card); padding: 30px; border-radius: 8px; border-bottom: 3px solid var(--pacharan-red);">
+                <h3 style="color: #fff; font-size: 1.8rem; margin-bottom: 15px;">Endrin-OS</h3>
+                <p>Sistema operativo destilado que a las dos horas de funcionar se pone en modo resaca. Maximiza la ineficiencia mediante latencia inducida.</p>
+                <button class="btn" style="padding: 10px 20px; font-size: 10px;" onclick="alert('Descarga fallida: Tu disco duro no tiene suficiente nivel de alcohol en placa.')">Descargar ISO</button>
+            </div>
+
+            <div class="col" style="text-align: center; background: var(--bg-card); padding: 30px; border-radius: 8px; border-bottom: 3px solid var(--pacharan-red);">
+                <h3 style="color: #fff; font-size: 1.8rem; margin-bottom: 15px;">Cloud Caprino Distribuido</h3>
+                <p>Los servidores están a lomos de cabra en la Sierra de Huétor. Almacenamiento basado en la rumia. Alta latencia garantizada, pero 100% ecológico.</p>
+                <button class="btn" style="padding: 10px 20px; font-size: 10px;" onclick="alert('Petición de Ping... Ping... Ping... Tiempo de espera agotado. La cabra se ha dormido.')">Hacer Ping al Servidor</button>
+            </div>
+
+            <div class="col" style="text-align: center; background: var(--bg-card); padding: 30px; border-radius: 8px; border-bottom: 3px solid var(--pacharan-red);">
+                <h3 style="color: #fff; font-size: 1.8rem; margin-bottom: 15px;">Goat-GPT Enterprise</h3>
+                <p>Nuestra Inteligencia Artificial propietaria. Entrenada para darte respuestas hostiles, generar Síndrome del Impostor y destruir tus metodologías Agile.</p>
+                <a href="https://goatgpt.netlify.app/" target="_blank" class="btn" style="padding: 10px 20px; font-size: 10px; border-color: var(--pacharan-red); color: var(--pacharan-red);">Interactuar con la IA</a>
+            </div>
+        </div>
+    </section>
+
+    <section id="soluciones" class="section" style="background-color: var(--bg-darker);">
+        <h2 class="section-title">– Soluciones Corporativas –</h2>
+        <div class="grid-3">
+            <div class="card">
+                <h3>Enterprise Analytics</h3>
+                <p>Marcos de análisis que ralentizan la toma de decisiones. Añadimos latencia crítica y métricas indescifrables.</p>
+                <a class="card-link" onclick="alert('Acceso denegado: Servidor de Analytics pastando.')">Leer Más</a>
+            </div>
+            <div class="card">
+                <h3>Aplicaciones Negativas</h3>
+                <p>¿Cansado de la eficiencia? Software diseñado para ralentizar tus procesos y darte tiempo para reflexionar sobre tu vida.</p>
+                <a class="card-link" onclick="alert('La App Negativa ha desinstalado tu sistema operativo.')">Descargar Demo</a>
+            </div>
+            <div class="card">
+                <h3>Consultoría Mari Chantal</h3>
+                <p>Auditorías tecnológicas. Si tu sistema funciona entonces el factor humano no interviene, eso te lo arregla la jefa.</p>
+                <p>Auditorías extremas de Recursos Humanos. Te diremos a la cara que un botijo haría mejor tu trabajo. Facturación por horas de llanto.</p>
+                <a class="card-link" onclick="alert('Mari Chantal está ocupada ignorando tus quejas.')">Reservar Cita</a>
+            </div>
+        </div>
+    </section>
+
+    <section id="herramientas" class="section">
+        <h2 class="section-title" style="text-align: center; color: var(--pacharan-red); letter-spacing: 4px; text-transform: uppercase;">– Ecosistema P.A.C.H.A.R.A.N. –</h2>
+        
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-top: 4px solid var(--pacharan-red); padding: 50px; margin-top: 40px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <h3 style="font-size: 2.5rem; color: #fff; margin-bottom: 20px;">Goat-GPT <span style="font-size: 1rem; color: var(--pacharan-red); vertical-align: super;">ENTERPRISE</span></h3>
+            
+            <p style="color: var(--text-muted); font-size: 1.2rem; max-width: 800px; margin: 0 auto 40px auto; line-height: 1.6;">
+                Nuestra joya de la corona. La primera Inteligencia Artificial del mercado entrenada exclusivamente con posos de pacharán y desprecio corporativo. Diseñada para mermar la productividad de tu equipo y agilizar la quiebra de tu empresa. 
+            </p>
+            
+            <a href="https://goatgpt.netlify.app/" target="_blank" style="background-color: transparent; color: #fff; border: 2px solid var(--pacharan-red); padding: 15px 30px; font-size: 1.1rem; text-decoration: none; cursor: pointer; display: inline-block; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px;" onmouseover="this.style.backgroundColor='var(--pacharan-red)'" onmouseout="this.style.backgroundColor='transparent'">
+                Probar Goat-GPT (Bajo tu propia responsabilidad)
+            </a>
+            
+            <p style="font-size: 0.8rem; color: #555; margin-top: 20px; font-style: italic;">
+                * Cuidado: El uso prolongado puede causar Síndrome del Impostor y adicción a las endrinas.
+            </p>
+        </div>
+    </section>
+
+    <section id="contacto" class="section">
+        <h2 class="section-title">– Contacto –</h2>
+        <h3 style="font-size: 2rem; margin-bottom: 20px;">¿Quieres desestructurar tu empresa? Hablemos.</h3>
+        <p style="color: var(--text-muted); margin-bottom: 20px;">La comunicación corporativa se realiza exclusivamente a través de frecuencias caprinas o frecuencias alcohólicas.</p>
+        
+        <p style="color: #fff; font-size: 1rem; margin-bottom: 40px; font-family: monospace; text-shadow: 0 0 10px var(--pacharan-red);">institutotecnologicodequentar@gmail.com</p>
+        
+        <button class="btn" id="balido-btn">Emitir Balido de Contacto</button>
+    </section>
+
+    <footer>
+        <div>&copy; 2026 ITQ - Instituto Tecnológico de Quentar.</div>
+        <div>Diseñado bajo los efectos del endrino.</div>
+    </footer>
+
+    <script>
+        document.getElementById('balido-btn').addEventListener('click', function() {
+            // Creamos un elemento de audio temporalmente
+            const audio = new Audio('balido.mp3'); 
+            
+            // Reproducimos el balido
+            audio.play();
+            
+            // Después del balido, mostramos la alerta de caos
+            setTimeout(function() {
+                alert('Transmisión enviada. La cabra balará su respuesta en un plazo de 4 a 6 años fiscales.');
+            }, 1000); // Pequeño retraso para que el audio se escuche antes de la alerta
+        });
+    </script>
+
+</body>
+</html>
